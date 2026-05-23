@@ -432,14 +432,60 @@ def render():
                 _player_attack(move)
                 st.rerun()
 
+    # ── Manual HP sliders ────────────────────────────────────────────────────
     st.markdown("---")
-    run_col, override_col = st.columns(2)
+    st.markdown("#### 🎛️ Manual HP Adjustment")
+    sl1, sl2 = st.columns(2)
+    with sl1:
+        new_my_hp = st.slider(
+            f"{my['name']} HP",
+            min_value=0,
+            max_value=st.session_state.my_max_hp,
+            value=st.session_state.my_current_hp,
+            key="slider_my_hp",
+        )
+        if new_my_hp != st.session_state.my_current_hp:
+            st.session_state.my_current_hp = new_my_hp
+            if new_my_hp <= 0:
+                st.session_state.battle_log.append(f"💀 {my['name']} fainted...")
+                st.session_state.battle_result = "lose"
+                st.session_state.battle_active = False
+                _record_result("lose")
+            st.rerun()
+    with sl2:
+        new_opp_hp = st.slider(
+            f"{opp['name']} HP",
+            min_value=0,
+            max_value=st.session_state.opponent_max_hp,
+            value=st.session_state.opponent_current_hp,
+            key="slider_opp_hp",
+        )
+        if new_opp_hp != st.session_state.opponent_current_hp:
+            st.session_state.opponent_current_hp = new_opp_hp
+            if new_opp_hp <= 0:
+                import random as _r
+                xp_gain = _r.randint(15, 35)
+                st.session_state.my_xp += xp_gain
+                leveled = level_up_check()
+                log = st.session_state.battle_log
+                log.append(f"💥 Wild {opp['name']} fainted! +{xp_gain} XP")
+                if leveled:
+                    log.append(f"⬆️ {my['name']} grew to level {st.session_state.my_level}!")
+                st.session_state.battle_log = log[-20:]
+                st.session_state.battle_result = "win"
+                st.session_state.battle_active = False
+                _record_result("win")
+            st.rerun()
+
+    # ── Override buttons ─────────────────────────────────────────────────────
+    st.markdown("---")
+    run_col, win_col, lose_col = st.columns(3)
     with run_col:
         if st.button("🏃 Run away!", use_container_width=True):
             st.session_state.battle_log.append("Got away safely!")
             reset_battle()
             st.rerun()
-    with override_col:
+    with win_col:
         if st.button("🎮 Override — I won IRL!", use_container_width=True):
             opp = st.session_state.opponent_pokemon
             import random as _r
@@ -454,6 +500,15 @@ def render():
             st.session_state.battle_result = "win"
             st.session_state.battle_active = False
             _record_result("win")
+            st.rerun()
+    with lose_col:
+        if st.button("💀 Override — I lost IRL!", use_container_width=True):
+            log = st.session_state.battle_log
+            log.append("[OVERRIDE] Battle lost outside the app.")
+            st.session_state.battle_log = log[-20:]
+            st.session_state.battle_result = "lose"
+            st.session_state.battle_active = False
+            _record_result("lose")
             st.rerun()
 
     if st.session_state.battle_log:
