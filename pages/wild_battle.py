@@ -374,6 +374,47 @@ def render():
         _show_pokemon_card(opp, st.session_state.opponent_current_hp,
                            "Wild Pokémon", animated=True)
 
+    # ── Wild pokemon move stats ─────────────────────────────────────────────
+    opp_moves = st.session_state.opponent_moves or []
+    if opp_moves:
+        move_rows = "".join(
+            f"""<tr>
+                <td style="padding:3px 10px;font-weight:600;">{m['name']}</td>
+                <td style="padding:3px 8px;">
+                    <span class="type-badge" style="background:{
+                        {'fire':'#F08030','water':'#6890F0','grass':'#78C850','electric':'#F8D030',
+                         'psychic':'#F85888','ice':'#98D8D8','dragon':'#7038F8','dark':'#705848',
+                         'normal':'#A8A878','fighting':'#C03028','poison':'#A040A0','ground':'#E0C068',
+                         'flying':'#A890F0','bug':'#A8B820','rock':'#B8A038','ghost':'#705898',
+                         'steel':'#B8B8D0','fairy':'#EE99AC'}.get(m['type'],'#888')
+                    };">{m['type']}</span>
+                </td>
+                <td style="padding:3px 8px;color:{'#F44336' if (m['power'] or 0)>=80 else '#FFC107' if (m['power'] or 0)>=50 else '#aaa'};">
+                    {'💥 ' if (m['power'] or 0)>=80 else ''}{m['power'] or '—'} pwr
+                </td>
+                <td style="padding:3px 8px;color:var(--text-muted);">{m['pp']} PP</td>
+            </tr>"""
+            for m in opp_moves
+        )
+        st.markdown(f"""
+        <div style="margin:0.5rem 0 1rem 0;">
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:4px;letter-spacing:1px;text-transform:uppercase;">
+                {opp['name']}'s moves
+            </div>
+            <table style="width:100%;border-collapse:collapse;background:rgba(0,0,0,0.25);
+                          border:1px solid var(--poke-blue);border-radius:8px;font-size:0.8rem;">
+                <thead>
+                    <tr style="color:var(--text-muted);font-size:0.7rem;border-bottom:1px solid rgba(255,255,255,0.08);">
+                        <th style="padding:4px 10px;text-align:left;">Move</th>
+                        <th style="padding:4px 8px;text-align:left;">Type</th>
+                        <th style="padding:4px 8px;text-align:left;">Power</th>
+                        <th style="padding:4px 8px;text-align:left;">PP</th>
+                    </tr>
+                </thead>
+                <tbody>{move_rows}</tbody>
+            </table>
+        </div>""", unsafe_allow_html=True)
+
     st.markdown("---")
     st.markdown("#### Choose your move:")
     move_cols = st.columns(2)
