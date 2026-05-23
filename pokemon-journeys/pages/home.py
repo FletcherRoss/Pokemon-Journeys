@@ -1,3 +1,9 @@
+import sys, os
+from pathlib import Path
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import streamlit as st
 from utils.pokemon_api import get_random_starters, fetch_moves, type_badge_html
 from utils.csv_manager import load_teams, save_teams, update_trainer

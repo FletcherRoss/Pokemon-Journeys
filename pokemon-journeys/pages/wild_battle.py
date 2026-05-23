@@ -1,3 +1,9 @@
+import sys, os
+from pathlib import Path
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import random
 import streamlit as st
 from utils.pokemon_api import get_random_wild, fetch_moves, type_badge_html

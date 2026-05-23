@@ -1,6 +1,11 @@
 import sys
 import os
-sys.path.insert(0, os.path.dirname(__file__))
+from pathlib import Path
+
+# Ensure repo root is always on the path regardless of working directory
+ROOT = Path(__file__).resolve().parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import streamlit as st
 import random
@@ -42,7 +47,6 @@ h3, h4 { font-family: 'VT323', monospace; font-size: 1.6rem; letter-spacing: 1px
 
 .stApp { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
 
-/* Pokéball header */
 .pokeball-header {
     text-align: center;
     padding: 2rem 0 1rem 0;
@@ -53,7 +57,6 @@ h3, h4 { font-family: 'VT323', monospace; font-size: 1.6rem; letter-spacing: 1px
     letter-spacing: 2px;
 }
 
-/* Cards */
 .pokemon-card {
     background: linear-gradient(145deg, #1e2a4a, #0f1a35);
     border: 2px solid var(--poke-blue);
@@ -69,17 +72,10 @@ h3, h4 { font-family: 'VT323', monospace; font-size: 1.6rem; letter-spacing: 1px
     box-shadow: 0 6px 25px rgba(255,203,5,0.35);
     transform: translateY(-4px);
 }
-.pokemon-card.selected {
-    border-color: var(--poke-yellow);
-    background: linear-gradient(145deg, #2a3a1a, #1a2a0f);
-    box-shadow: 0 0 20px rgba(255,203,5,0.5);
-}
 
-/* HP bar */
 .hp-bar-wrap { background: #333; border-radius: 6px; height: 12px; margin: 4px 0; overflow: hidden; }
 .hp-bar-fill  { height: 100%; border-radius: 6px; transition: width 0.5s ease; }
 
-/* Type badge */
 .type-badge {
     display: inline-block;
     padding: 2px 10px;
@@ -92,7 +88,6 @@ h3, h4 { font-family: 'VT323', monospace; font-size: 1.6rem; letter-spacing: 1px
     color: #fff;
 }
 
-/* Battle log */
 .battle-log {
     background: rgba(0,0,0,0.4);
     border: 1px solid var(--poke-blue);
@@ -106,7 +101,6 @@ h3, h4 { font-family: 'VT323', monospace; font-size: 1.6rem; letter-spacing: 1px
     white-space: pre-wrap;
 }
 
-/* Sidebar team tracker */
 .team-badge {
     background: var(--poke-accent);
     border-left: 4px solid var(--poke-yellow);
@@ -116,7 +110,6 @@ h3, h4 { font-family: 'VT323', monospace; font-size: 1.6rem; letter-spacing: 1px
     font-size: 0.85rem;
 }
 
-/* Buttons */
 .stButton > button {
     background: linear-gradient(135deg, var(--poke-red), #c0280a) !important;
     color: white !important;
@@ -135,7 +128,6 @@ h3, h4 { font-family: 'VT323', monospace; font-size: 1.6rem; letter-spacing: 1px
     box-shadow: 0 6px 16px rgba(227,53,13,0.5) !important;
 }
 
-/* Gym badge */
 .gym-badge-earned {
     display: inline-flex; align-items: center; justify-content: center;
     width: 48px; height: 48px; border-radius: 50%;
@@ -155,10 +147,6 @@ h3, h4 { font-family: 'VT323', monospace; font-size: 1.6rem; letter-spacing: 1px
     margin: 3px;
 }
 
-/* Selectbox & radio styling */
-.stSelectbox > div > div, .stRadio > div { color: var(--text-main) !important; }
-
-/* Win/lose banner */
 .win-banner  { text-align:center; font-family:'Press Start 2P',monospace; font-size:1.2rem;
                color:var(--poke-yellow); padding:1rem; background:rgba(255,203,5,0.1);
                border:2px solid var(--poke-yellow); border-radius:12px; animation: pulse 1.5s infinite; }
