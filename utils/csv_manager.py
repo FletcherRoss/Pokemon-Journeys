@@ -153,6 +153,9 @@ def update_trainer(df: pd.DataFrame, trainer: str, **kwargs) -> pd.DataFrame:
     idx = df.index[df["trainer"] == trainer]
     if len(idx) == 0:
         return df
+    # Cast to object dtype first to avoid pandas dtype coercion errors
+    # (e.g. writing a string into an int column or vice versa)
+    df = df.astype(object)
     for k, v in kwargs.items():
         if k in df.columns:
             df.at[idx[0], k] = v
