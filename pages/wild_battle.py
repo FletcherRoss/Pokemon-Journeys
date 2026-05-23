@@ -6,16 +6,27 @@ if str(ROOT) not in sys.path:
 
 import random
 import streamlit as st
-from utils.pokemon_api import get_random_wild, fetch_moves, type_badge_html
+from utils.pokemon_api import get_random_wild, fetch_moves, fetch_pokemon, type_badge_html
 from utils.csv_manager import load_teams, save_teams, update_trainer
-from utils.captures_manager import add_capture, get_capture_count, init_captures_csv
+from utils.captures_manager import (
+    add_capture, get_capture_count, load_captures, init_captures_csv
+)
 from utils.game_state import (
     hp_percent, hp_bar_color, damage_calc, reset_battle, level_up_check
 )
 
-# d20 threshold: roll >= this to capture
 CAPTURE_THRESHOLD = 10
 
+TYPE_COLORS = {
+    "fire":"#F08030","water":"#6890F0","grass":"#78C850","electric":"#F8D030",
+    "psychic":"#F85888","ice":"#98D8D8","dragon":"#7038F8","dark":"#705848",
+    "normal":"#A8A878","fighting":"#C03028","poison":"#A040A0","ground":"#E0C068",
+    "flying":"#A890F0","bug":"#A8B820","rock":"#B8A038","ghost":"#705898",
+    "steel":"#B8B8D0","fairy":"#EE99AC",
+}
+
+
+# ── Guards & helpers ──────────────────────────────────────────────────────────
 
 def _guard() -> bool:
     if not st.session_state.trainer_name:
@@ -52,6 +63,116 @@ def _show_pokemon_card(poke: dict, current_hp: int, label: str, animated: bool =
     _hp_bar("HP", current_hp, poke["hp"])
 
 
+# ── Team switcher ─────────────────────────────────────────────────────────────
+
+def _build_team_roster(trainer: str) -> list[dict]:
+    """Return list of {label, poke_dict, moves} for starter + all captures."""
+    roster = []
+
+    # Starter
+    df = load_teams()
+    row = df[df["trainer"] == trainer]
+    if len(row):
+        r = row.iloc[0]
+        try:
+            sid = int(float(r.get("starter_id", 0) or 0))
+            slv = int(float(r.get("level", 5) or 5))
+        except (ValueError, TypeError):
+            sid, slv = 0, 5
+        if sid > 0:
+            poke = fetch_pokemon(sid)
+            poke["level"] = slv
+            moves = fetch_moves(sid)
+            roster.append({
+                "label":   f"⭐ {poke['name']} (Starter, Lv.{slv})",
+                "poke":    poke,
+                "moves":   moves,
+                "is_starter": True,
+                "cap_idx": None,
+            })
+
+    # Captured Pokémon
+    caps = load_captures()
+    trainer_caps = caps[caps["trainer"] == trainer]
+    for idx, cap in trainer_caps.iterrows():
+        try:
+            pid = int(float(cap["pokemon_id"]))
+            lv  = int(float(cap.get("current_level") or cap.get("level_caught") or 5))
+        except (ValueError, TypeError):
+            continue
+        poke = fetch_pokemon(pid)
+        poke["level"] = lv
+        moves = fetch_moves(pid)
+        roster.append({
+            "label":      f"⚾ {poke['name']} (Lv.{lv})",
+            "poke":       poke,
+            "moves":      moves,
+            "is_starter": False,
+            "cap_idx":    idx,
+        })
+
+    return roster
+
+
+def _render_team_switcher(trainer: str):
+    """Expander shown during battle to swap the active Pokémon."""
+    roster = _build_team_roster(trainer)
+    if len(roster) <= 1:
+        return  # nothing to switch to
+
+    current_name = st.session_state.my_pokemon.get("name", "")
+
+    with st.expander("🔄 Switch Pokémon"):
+        st.markdown(
+            "<small style='color:var(--text-muted)'>Choose a Pokémon from your team to send into battle.</small>",
+            unsafe_allow_html=True,
+        )
+        cols_per_row = 3
+        entries = [r for r in roster if r["poke"]["name"] != current_name]
+
+        for row_start in range(0, len(entries), cols_per_row):
+            chunk = entries[row_start:row_start + cols_per_row]
+            cols  = st.columns(cols_per_row)
+            for col, entry in zip(cols, chunk):
+                poke = entry["poke"]
+                lv   = poke.get("level", 5)
+                sprite = f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{poke['id']}.png"
+                type_badges = "".join(
+                    f'<span class="type-badge" style="background:{TYPE_COLORS.get(t,"#888")};font-size:0.55rem;">{t}</span>'
+                    for t in poke["types"]
+                )
+                with col:
+                    st.markdown(f"""
+                    <div class="pokemon-card" style="cursor:default;padding:0.6rem;">
+                        <img src="{sprite}" width="60" style="image-rendering:pixelated"/>
+                        <div style="font-size:0.75rem;font-weight:700;margin:2px 0;">{poke['name']}</div>
+                        {type_badges}
+                        <div style="font-size:0.65rem;color:var(--text-muted);margin-top:3px;">Lv.{lv}</div>
+                    </div>""", unsafe_allow_html=True)
+                    if st.button(f"Send out!", key=f"switch_{poke['id']}_{row_start}", use_container_width=True):
+                        _switch_active_pokemon(entry)
+                        st.rerun()
+
+
+def _switch_active_pokemon(entry: dict):
+    """Swap the active battler to the chosen roster entry."""
+    poke  = entry["poke"]
+    moves = entry["moves"]
+    log   = st.session_state.battle_log
+
+    # Save old pokemon HP back if needed — just swap, keep opp HP intact
+    log.append(f"🔄 Go, {poke['name']}!")
+
+    st.session_state.my_pokemon    = poke
+    st.session_state.my_moves      = moves
+    st.session_state.my_max_hp     = poke["hp"]
+    st.session_state.my_current_hp = poke["hp"]
+    st.session_state.my_level      = poke.get("level", 5)
+    st.session_state.battle_log    = log[-20:]
+
+
+# ── Battle logic ──────────────────────────────────────────────────────────────
+
 def _start_encounter():
     wild  = get_random_wild()
     moves = fetch_moves(wild["id"])
@@ -63,8 +184,8 @@ def _start_encounter():
     st.session_state.battle_result       = None
     st.session_state.battle_log          = [f"A wild {wild['name']} appeared!"]
     st.session_state.battle_turn         = 0
-    st.session_state.capture_pending     = False   # waiting for d20 roll?
-    st.session_state.capture_result      = None    # "caught" | "escaped" | None
+    st.session_state.capture_pending     = False
+    st.session_state.capture_result      = None
     st.session_state.d20_roll            = None
 
 
@@ -90,7 +211,6 @@ def _player_attack(move: dict):
         st.session_state.battle_log = log[-20:]
         return
 
-    # Opponent hits back
     opp_move = random.choice(st.session_state.opponent_moves)
     opp_dmg  = damage_calc(opp, my, opp_move)
     st.session_state.my_current_hp = max(0, st.session_state.my_current_hp - opp_dmg)
@@ -121,7 +241,7 @@ def _record_result(result: str):
 
 
 def _try_evolve():
-    from utils.pokemon_api import get_evolution, fetch_moves
+    from utils.pokemon_api import get_evolution
     poke    = st.session_state.my_pokemon
     evolved = get_evolution(poke["id"])
     if evolved:
@@ -140,10 +260,9 @@ def _try_evolve():
     return None
 
 
-# ── d20 capture UI ────────────────────────────────────────────────────────────
+# ── d20 capture panel ─────────────────────────────────────────────────────────
 
 def _render_d20_panel():
-    """Shown after a win – lets player attempt capture."""
     opp     = st.session_state.opponent_pokemon
     trainer = st.session_state.trainer_name
     roll    = st.session_state.get("d20_roll")
@@ -151,23 +270,17 @@ def _render_d20_panel():
 
     st.markdown("---")
 
-    # Already rolled – show outcome
     if result == "caught":
         caught_count = get_capture_count(trainer)
         sprite = opp.get("sprite_anim") or opp["sprite"]
         st.markdown(f"""
-        <div style="
-            background: linear-gradient(145deg,#1a3a1a,#0f2a0f);
-            border: 2px solid #4CAF50;
-            border-radius:16px; padding:1.2rem; text-align:center;
-            box-shadow: 0 0 20px rgba(76,175,80,0.4);
-        ">
+        <div style="background:linear-gradient(145deg,#1a3a1a,#0f2a0f);
+            border:2px solid #4CAF50;border-radius:16px;padding:1.2rem;
+            text-align:center;box-shadow:0 0 20px rgba(76,175,80,0.4);">
             <div style="font-size:2rem">🎉</div>
             <img src="{sprite}" width="90" style="image-rendering:pixelated"/>
             <div style="font-family:'Press Start 2P',monospace;font-size:0.7rem;
-                        color:#4CAF50;margin:0.5rem 0;">
-                {opp['name']} was caught!
-            </div>
+                        color:#4CAF50;margin:0.5rem 0;">{opp['name']} was caught!</div>
             <div style="font-size:0.8rem;color:var(--text-muted);">
                 You rolled a <b style="color:#FFCB05">{roll}</b> 🎲 — success!<br>
                 {trainer} now has <b>{caught_count}</b> captured Pokémon
@@ -177,37 +290,31 @@ def _render_d20_panel():
 
     if result == "escaped":
         st.markdown(f"""
-        <div style="
-            background:rgba(227,53,13,0.1); border:2px solid var(--poke-red);
-            border-radius:16px; padding:1rem; text-align:center;
-        ">
+        <div style="background:rgba(227,53,13,0.1);border:2px solid var(--poke-red);
+            border-radius:16px;padding:1rem;text-align:center;">
             <div style="font-size:1.5rem">💨</div>
             <div style="font-family:'Press Start 2P',monospace;font-size:0.65rem;color:var(--poke-red);">
-                {opp['name']} broke free!
-            </div>
+                {opp['name']} broke free!</div>
             <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">
                 You rolled a <b style="color:#FFCB05">{roll}</b> 🎲 — needed {CAPTURE_THRESHOLD}+
             </div>
         </div>""", unsafe_allow_html=True)
         return
 
-    # Not yet rolled – show capture prompt
     opp_types = " ".join(type_badge_html(t) for t in opp["types"])
     sprite    = opp.get("sprite_anim") or opp["sprite"]
 
     st.markdown(f"""
-    <div style="
-        background: linear-gradient(145deg,#1e2a4a,#0f1a35);
-        border: 2px solid var(--poke-yellow);
-        border-radius:16px; padding:1.2rem; text-align:center;
-        box-shadow: 0 0 16px rgba(255,203,5,0.3);
-    ">
+    <div style="background:linear-gradient(145deg,#1e2a4a,#0f1a35);
+        border:2px solid var(--poke-yellow);border-radius:16px;padding:1.2rem;
+        text-align:center;box-shadow:0 0 16px rgba(255,203,5,0.3);">
         <div style="font-size:1.5rem">⚾</div>
-        <img src="{sprite}" width="100" style="image-rendering:pixelated; margin:4px 0;"/>
-        <div style="font-weight:700; font-size:1rem;">{opp['name']}</div>
+        <img src="{sprite}" width="100" style="image-rendering:pixelated;margin:4px 0;"/>
+        <div style="font-weight:700;font-size:1rem;">{opp['name']}</div>
         <div style="margin:4px 0">{opp_types}</div>
         <div style="font-size:0.8rem;color:var(--text-muted);margin-top:6px;">
-            Throw a Pokéball? Roll a d20 — you need <b style="color:var(--poke-yellow)">{CAPTURE_THRESHOLD}+</b> to catch it!
+            Throw a Pokéball? Roll a d20 — you need
+            <b style="color:var(--poke-yellow)">{CAPTURE_THRESHOLD}+</b> to catch it!
         </div>
     </div>""", unsafe_allow_html=True)
 
@@ -245,17 +352,12 @@ def render():
     my      = st.session_state.my_pokemon
     trainer = st.session_state.trainer_name
 
-    # Ensure capture state keys exist
-    if "capture_pending" not in st.session_state:
-        st.session_state.capture_pending = False
-    if "capture_result" not in st.session_state:
-        st.session_state.capture_result = None
-    if "d20_roll" not in st.session_state:
-        st.session_state.d20_roll = None
+    for key, default in [("capture_pending", False), ("capture_result", None), ("d20_roll", None)]:
+        if key not in st.session_state:
+            st.session_state[key] = default
 
     st.markdown("## ⚔️ Wild Battle")
 
-    # Capture count badge in header
     caught = get_capture_count(trainer)
     st.markdown(f"""
     <div style="display:inline-block;background:var(--poke-accent);
@@ -264,7 +366,7 @@ def render():
         ⚾ {trainer}'s Pokédex: <b>{caught}</b> caught
     </div>""", unsafe_allow_html=True)
 
-    # ── Pre-battle lobby ────────────────────────────────────────────────────
+    # ── Pre-battle lobby ─────────────────────────────────────────────────────
     if not st.session_state.battle_active and st.session_state.battle_result is None:
         col1, col2 = st.columns([1, 2])
         with col1:
@@ -293,20 +395,16 @@ def render():
                     else:
                         st.info(f"{my['name']} can't evolve further right now.")
 
-        # ── IRL battle override ──────────────────────────────────────────────
         with st.expander("🎮 Log an outside battle"):
             st.markdown(
                 "<small style='color:var(--text-muted)'>Battled outside the app? "
                 "Record the result here to keep your stats up to date.</small>",
                 unsafe_allow_html=True,
             )
-            irl_result = st.radio(
-                "Result:", ["Win", "Loss"], horizontal=True, key="irl_result_radio"
-            )
+            irl_result = st.radio("Result:", ["Win", "Loss"], horizontal=True, key="irl_result_radio")
             if st.button("✅ Log this battle", key="irl_log_btn", use_container_width=True):
                 _record_result("win" if irl_result == "Win" else "lose")
                 if irl_result == "Win":
-                    # Give some XP and trigger level-up check
                     import random as _r
                     st.session_state.my_xp += _r.randint(15, 35)
                     level_up_check()
@@ -316,21 +414,17 @@ def render():
                 st.rerun()
         return
 
-    # ── Post-battle result screen ───────────────────────────────────────────
+    # ── Post-battle result screen ─────────────────────────────────────────────
     if st.session_state.battle_result:
         result = st.session_state.battle_result
 
         if result == "win":
             st.markdown('<div class="win-banner">🏆 YOU WIN! 🏆</div>', unsafe_allow_html=True)
-
-            # Show battle log
             st.markdown("#### Battle Log")
             log_text = "\n".join(st.session_state.battle_log)
             st.markdown(f'<div class="battle-log">{log_text}</div>', unsafe_allow_html=True)
 
-            # ── Capture panel (only if not yet resolved) ──────────────────
-            capture_result = st.session_state.get("capture_result")
-            if capture_result not in ("skipped",):
+            if st.session_state.get("capture_result") not in ("skipped",):
                 _render_d20_panel()
 
             st.markdown("---")
@@ -349,7 +443,6 @@ def render():
                     st.session_state.d20_roll = None
                     st.success(f"{my['name']} was fully healed!")
                     st.rerun()
-
         else:
             st.markdown('<div class="lose-banner">💀 YOUR POKÉMON FAINTED!</div>', unsafe_allow_html=True)
             st.markdown("#### Battle Log")
@@ -369,7 +462,7 @@ def render():
                     st.rerun()
         return
 
-    # ── Active battle ────────────────────────────────────────────────────────
+    # ── Active battle ─────────────────────────────────────────────────────────
     opp = st.session_state.opponent_pokemon
 
     col1, col2 = st.columns(2)
@@ -380,47 +473,39 @@ def render():
         _show_pokemon_card(opp, st.session_state.opponent_current_hp,
                            "Wild Pokémon", animated=True)
 
-    # ── Wild pokemon move stats ─────────────────────────────────────────────
+    # ── Wild Pokémon move stats ───────────────────────────────────────────────
     opp_moves = st.session_state.opponent_moves or []
     if opp_moves:
         move_rows = "".join(
             f"""<tr>
                 <td style="padding:3px 10px;font-weight:600;">{m['name']}</td>
                 <td style="padding:3px 8px;">
-                    <span class="type-badge" style="background:{
-                        {'fire':'#F08030','water':'#6890F0','grass':'#78C850','electric':'#F8D030',
-                         'psychic':'#F85888','ice':'#98D8D8','dragon':'#7038F8','dark':'#705848',
-                         'normal':'#A8A878','fighting':'#C03028','poison':'#A040A0','ground':'#E0C068',
-                         'flying':'#A890F0','bug':'#A8B820','rock':'#B8A038','ghost':'#705898',
-                         'steel':'#B8B8D0','fairy':'#EE99AC'}.get(m['type'],'#888')
-                    };">{m['type']}</span>
-                </td>
+                    <span class="type-badge" style="background:{TYPE_COLORS.get(m['type'],'#888')};">
+                        {m['type']}</span></td>
                 <td style="padding:3px 8px;color:{'#F44336' if (m['power'] or 0)>=80 else '#FFC107' if (m['power'] or 0)>=50 else '#aaa'};">
-                    {'💥 ' if (m['power'] or 0)>=80 else ''}{m['power'] or '—'} pwr
-                </td>
+                    {'💥 ' if (m['power'] or 0)>=80 else ''}{m['power'] or '—'} pwr</td>
                 <td style="padding:3px 8px;color:var(--text-muted);">{m['pp']} PP</td>
             </tr>"""
             for m in opp_moves
         )
         st.markdown(f"""
         <div style="margin:0.5rem 0 1rem 0;">
-            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:4px;letter-spacing:1px;text-transform:uppercase;">
-                {opp['name']}'s moves
-            </div>
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:4px;
+                        letter-spacing:1px;text-transform:uppercase;">{opp['name']}'s moves</div>
             <table style="width:100%;border-collapse:collapse;background:rgba(0,0,0,0.25);
                           border:1px solid var(--poke-blue);border-radius:8px;font-size:0.8rem;">
-                <thead>
-                    <tr style="color:var(--text-muted);font-size:0.7rem;border-bottom:1px solid rgba(255,255,255,0.08);">
-                        <th style="padding:4px 10px;text-align:left;">Move</th>
-                        <th style="padding:4px 8px;text-align:left;">Type</th>
-                        <th style="padding:4px 8px;text-align:left;">Power</th>
-                        <th style="padding:4px 8px;text-align:left;">PP</th>
-                    </tr>
-                </thead>
+                <thead><tr style="color:var(--text-muted);font-size:0.7rem;
+                                   border-bottom:1px solid rgba(255,255,255,0.08);">
+                    <th style="padding:4px 10px;text-align:left;">Move</th>
+                    <th style="padding:4px 8px;text-align:left;">Type</th>
+                    <th style="padding:4px 8px;text-align:left;">Power</th>
+                    <th style="padding:4px 8px;text-align:left;">PP</th>
+                </tr></thead>
                 <tbody>{move_rows}</tbody>
             </table>
         </div>""", unsafe_allow_html=True)
 
+    # ── Your moves ────────────────────────────────────────────────────────────
     st.markdown("---")
     st.markdown("#### Choose your move:")
     move_cols = st.columns(2)
@@ -432,17 +517,18 @@ def render():
                 _player_attack(move)
                 st.rerun()
 
-    # ── Manual HP sliders ────────────────────────────────────────────────────
+    # ── Switch Pokémon ────────────────────────────────────────────────────────
+    _render_team_switcher(trainer)
+
+    # ── Manual HP sliders ─────────────────────────────────────────────────────
     st.markdown("---")
     st.markdown("#### 🎛️ Manual HP Adjustment")
     sl1, sl2 = st.columns(2)
     with sl1:
         new_my_hp = st.slider(
             f"{my['name']} HP",
-            min_value=0,
-            max_value=st.session_state.my_max_hp,
-            value=st.session_state.my_current_hp,
-            key="slider_my_hp",
+            min_value=0, max_value=st.session_state.my_max_hp,
+            value=st.session_state.my_current_hp, key="slider_my_hp",
         )
         if new_my_hp != st.session_state.my_current_hp:
             st.session_state.my_current_hp = new_my_hp
@@ -455,10 +541,8 @@ def render():
     with sl2:
         new_opp_hp = st.slider(
             f"{opp['name']} HP",
-            min_value=0,
-            max_value=st.session_state.opponent_max_hp,
-            value=st.session_state.opponent_current_hp,
-            key="slider_opp_hp",
+            min_value=0, max_value=st.session_state.opponent_max_hp,
+            value=st.session_state.opponent_current_hp, key="slider_opp_hp",
         )
         if new_opp_hp != st.session_state.opponent_current_hp:
             st.session_state.opponent_current_hp = new_opp_hp
@@ -477,7 +561,7 @@ def render():
                 _record_result("win")
             st.rerun()
 
-    # ── Override buttons ─────────────────────────────────────────────────────
+    # ── Override buttons ──────────────────────────────────────────────────────
     st.markdown("---")
     run_col, win_col, lose_col = st.columns(3)
     with run_col:
@@ -487,7 +571,6 @@ def render():
             st.rerun()
     with win_col:
         if st.button("🎮 Override — I won IRL!", use_container_width=True):
-            opp = st.session_state.opponent_pokemon
             import random as _r
             xp_gain = _r.randint(15, 35)
             st.session_state.my_xp += xp_gain
