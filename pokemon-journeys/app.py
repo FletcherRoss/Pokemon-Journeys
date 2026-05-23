@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+
 import streamlit as st
 import random
 from utils.pokemon_api import get_random_starters, get_pokemon_sprite
