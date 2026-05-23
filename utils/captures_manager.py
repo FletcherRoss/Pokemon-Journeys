@@ -20,7 +20,7 @@ BRANCH      = "main"
 API_BASE    = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{CSV_PATH}"
 LOCAL_CSV   = os.path.join(os.path.dirname(__file__), "..", "data", "captures.csv")
 
-COLUMNS = ["trainer", "pokemon_name", "pokemon_id", "types", "level_caught", "caught_at"]
+COLUMNS = ["trainer", "pokemon_name", "pokemon_id", "types", "level_caught", "current_level", "caught_at"]
 
 
 def _github_token():
@@ -112,14 +112,26 @@ def add_capture(trainer: str, pokemon: dict, level_caught: int) -> pd.DataFrame:
     """Append a new capture row and save. Returns updated df."""
     df = load_captures()
     new_row = {
-        "trainer":      trainer,
-        "pokemon_name": pokemon["name"],
-        "pokemon_id":   pokemon["id"],
-        "types":        "/".join(pokemon.get("types", ["normal"])),
-        "level_caught": level_caught,
-        "caught_at":    datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
+        "trainer":       trainer,
+        "pokemon_name":  pokemon["name"],
+        "pokemon_id":    pokemon["id"],
+        "types":         "/".join(pokemon.get("types", ["normal"])),
+        "level_caught":  level_caught,
+        "current_level": level_caught,
+        "caught_at":     datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
     }
     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+    save_captures(df)
+    return df
+
+
+def level_up_captured(capture_index: int, amount: int = 1) -> pd.DataFrame:
+    """Increment current_level for the row at capture_index (global df index). Saves and returns df."""
+    df = load_captures()
+    df = df.astype(object)
+    if capture_index in df.index:
+        current = int(float(df.at[capture_index, "current_level"] or df.at[capture_index, "level_caught"] or 5))
+        df.at[capture_index, "current_level"] = current + amount
     save_captures(df)
     return df
 
