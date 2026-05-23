@@ -211,7 +211,7 @@ def _render_d20_panel():
         </div>
     </div>""", unsafe_allow_html=True)
 
-    c1, c2 = st.columns(2)
+    c1, c2, c3 = st.columns(3)
     with c1:
         if st.button("🎲 Throw Pokéball! (Roll d20)", use_container_width=True):
             roll = random.randint(1, 20)
@@ -223,6 +223,12 @@ def _render_d20_panel():
                 st.session_state.capture_result = "escaped"
             st.rerun()
     with c2:
+        if st.button("✅ Caught it IRL!", use_container_width=True):
+            st.session_state.d20_roll = 20
+            st.session_state.capture_result = "caught"
+            add_capture(trainer, opp, st.session_state.my_level)
+            st.rerun()
+    with c3:
         if st.button("⏭️ Skip capture", use_container_width=True):
             st.session_state.capture_result = "skipped"
             st.rerun()
