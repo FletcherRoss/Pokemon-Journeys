@@ -13,13 +13,79 @@ TRAINERS = ["Addy", "Oakley", "Raelynn"]
 TRAINER_EMOJI = {"Addy": "🌸", "Oakley": "⚡", "Raelynn": "🔥"}
 
 
+def _safe_int(val, default=0):
+    try:
+        return int(float(val))
+    except (ValueError, TypeError):
+        return default
+
+
+def _switch_trainer(new_trainer: str):
+    """Clear battle/pokemon state and switch active trainer."""
+    keys_to_clear = [
+        "my_pokemon", "my_moves", "my_current_hp", "my_max_hp",
+        "my_level", "my_xp", "starter_options", "starter_chosen",
+        "battle_active", "battle_log", "battle_turn", "battle_result",
+        "opponent_pokemon", "opponent_moves", "opponent_current_hp", "opponent_max_hp",
+        "gym_leader_team", "gym_leader_moves", "gym_leader_hp", "gym_leader_index",
+    ]
+    for k in keys_to_clear:
+        if k in st.session_state:
+            del st.session_state[k]
+    st.session_state.trainer_name = new_trainer
+
+
+def _trainer_switcher(current: str, df):
+    """Render the always-visible trainer switcher strip."""
+    st.markdown("### 👤 Active Trainer")
+    cols = st.columns(3)
+    for i, trainer in enumerate(TRAINERS):
+        emoji = TRAINER_EMOJI[trainer]
+        row   = df[df["trainer"] == trainer]
+        badges = _safe_int(row.iloc[0]["badges"]) if len(row) else 0
+        wins   = _safe_int(row.iloc[0]["wins"])   if len(row) else 0
+        is_active = trainer == current
+
+        border = "2px solid var(--poke-yellow)" if is_active else "2px solid var(--poke-blue)"
+        bg     = "linear-gradient(145deg,#2a3a1a,#1a2a0f)" if is_active else "linear-gradient(145deg,#1e2a4a,#0f1a35)"
+        shadow = "0 0 18px rgba(255,203,5,0.45)" if is_active else "none"
+
+        with cols[i]:
+            st.markdown(f"""
+            <div style="
+                background:{bg};
+                border:{border};
+                border-radius:14px;
+                padding:0.9rem 0.5rem;
+                text-align:center;
+                box-shadow:{shadow};
+                margin-bottom:4px;
+            ">
+                <div style="font-size:2rem">{emoji}</div>
+                <div style="font-weight:700;font-size:1rem;margin:2px 0">{trainer}</div>
+                <div style="font-size:0.75rem;color:var(--text-muted)">🏅{badges} &nbsp;W:{wins}</div>
+                {'<div style="font-size:0.65rem;color:var(--poke-yellow);margin-top:4px">▶ ACTIVE</div>' if is_active else ''}
+            </div>""", unsafe_allow_html=True)
+
+            if not is_active:
+                if st.button(f"Switch to {trainer}", key=f"switch_{trainer}", use_container_width=True):
+                    _switch_trainer(trainer)
+                    st.rerun()
+            else:
+                st.markdown("<div style='height:38px'></div>", unsafe_allow_html=True)
+
+    st.markdown("---")
+
+
 def render():
     st.markdown('<div class="pokeball-header">⚡ POKÉMON JOURNEYS ⚡</div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Step 1: Choose trainer ──────────────────────────────────────────────
+    df = load_teams()
+
+    # ── Step 1: First-time trainer pick (no trainer set yet) ────────────────
     if not st.session_state.trainer_name:
-        st.markdown("### 🎮 Who's playing?")
+        st.markdown("### 🎮 Who's playing first?")
         st.markdown("Select your trainer to begin your journey.")
         cols = st.columns(3)
         for i, trainer in enumerate(TRAINERS):
@@ -38,16 +104,11 @@ def render():
     trainer = st.session_state.trainer_name
     emoji   = TRAINER_EMOJI[trainer]
 
-    # Check if already has a starter (from CSV)
-    df = load_teams()
+    # ── Always-visible trainer switcher ────────────────────────────────────
+    _trainer_switcher(trainer, df)
+
+    # ── Current trainer data ────────────────────────────────────────────────
     row = df[df["trainer"] == trainer]
-
-    def _safe_int(val, default=0):
-        try:
-            return int(float(val))
-        except (ValueError, TypeError):
-            return default
-
     starter_id_val = row.iloc[0]["starter_id"] if len(row) > 0 else ""
     has_starter = (
         len(row) > 0
@@ -56,13 +117,12 @@ def render():
     )
 
     if has_starter:
-        # ── Already has a starter: show status ─────────────────────────────
-        poke_name  = row.iloc[0]["starter"]
-        poke_id    = _safe_int(row.iloc[0]["starter_id"])
-        level      = _safe_int(row.iloc[0].get("level", 5), 5)
-        wins       = _safe_int(row.iloc[0].get("wins", 0))
-        losses     = _safe_int(row.iloc[0].get("losses", 0))
-        badges_n   = _safe_int(row.iloc[0].get("badges", 0))
+        poke_name = row.iloc[0]["starter"]
+        poke_id   = _safe_int(row.iloc[0]["starter_id"])
+        level     = _safe_int(row.iloc[0].get("level", 5), 5)
+        wins      = _safe_int(row.iloc[0].get("wins", 0))
+        losses    = _safe_int(row.iloc[0].get("losses", 0))
+        badges_n  = _safe_int(row.iloc[0].get("badges", 0))
 
         sprite_url = f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{poke_id}.png"
 
@@ -78,15 +138,15 @@ def render():
             st.markdown("Use the sidebar to head into battle or challenge a gym!")
 
         # Restore session pokemon if cleared
-        if not st.session_state.my_pokemon or st.session_state.my_pokemon["name"] != poke_name:
+        if not st.session_state.get("my_pokemon") or st.session_state.my_pokemon["name"] != poke_name:
             from utils.pokemon_api import fetch_pokemon
             poke = fetch_pokemon(poke_id)
             poke["level"] = level
-            st.session_state.my_pokemon     = poke
-            st.session_state.my_max_hp      = poke["hp"]
-            st.session_state.my_current_hp  = poke["hp"]
-            st.session_state.my_level       = level
-            if not st.session_state.my_moves:
+            st.session_state.my_pokemon    = poke
+            st.session_state.my_max_hp     = poke["hp"]
+            st.session_state.my_current_hp = poke["hp"]
+            st.session_state.my_level      = level
+            if not st.session_state.get("my_moves"):
                 st.session_state.my_moves = fetch_moves(poke_id)
         return
 
@@ -94,7 +154,7 @@ def render():
     st.markdown(f"## {emoji} {trainer}'s Journey Begins!")
     st.markdown("Professor Oak has 3 Pokémon waiting for you. Choose your partner:")
 
-    if not st.session_state.starter_options:
+    if not st.session_state.get("starter_options"):
         with st.spinner("Professor Oak is preparing your choices..."):
             st.session_state.starter_options = get_random_starters(3)
 
@@ -124,14 +184,12 @@ def render():
 
 
 def _choose_starter(trainer: str, poke: dict, df):
-    from utils.pokemon_api import fetch_moves
     moves = fetch_moves(poke["id"])
-
-    st.session_state.my_pokemon    = poke
-    st.session_state.my_moves      = moves
-    st.session_state.my_max_hp     = poke["hp"]
-    st.session_state.my_current_hp = poke["hp"]
-    st.session_state.my_level      = 5
+    st.session_state.my_pokemon     = poke
+    st.session_state.my_moves       = moves
+    st.session_state.my_max_hp      = poke["hp"]
+    st.session_state.my_current_hp  = poke["hp"]
+    st.session_state.my_level       = 5
     st.session_state.starter_chosen = True
 
     df = update_trainer(df, trainer,
