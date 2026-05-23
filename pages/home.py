@@ -41,16 +41,28 @@ def render():
     # Check if already has a starter (from CSV)
     df = load_teams()
     row = df[df["trainer"] == trainer]
-    has_starter = (len(row) > 0 and row.iloc[0]["starter"] != "" and str(row.iloc[0]["starter_id"]) != "0")
+
+    def _safe_int(val, default=0):
+        try:
+            return int(float(val))
+        except (ValueError, TypeError):
+            return default
+
+    starter_id_val = row.iloc[0]["starter_id"] if len(row) > 0 else ""
+    has_starter = (
+        len(row) > 0
+        and str(row.iloc[0]["starter"]).strip() not in ("", "nan")
+        and _safe_int(starter_id_val) > 0
+    )
 
     if has_starter:
         # ── Already has a starter: show status ─────────────────────────────
         poke_name  = row.iloc[0]["starter"]
-        poke_id    = int(row.iloc[0]["starter_id"])
-        level      = int(row.iloc[0].get("level", 5))
-        wins       = int(row.iloc[0].get("wins", 0))
-        losses     = int(row.iloc[0].get("losses", 0))
-        badges_n   = int(row.iloc[0].get("badges", 0))
+        poke_id    = _safe_int(row.iloc[0]["starter_id"])
+        level      = _safe_int(row.iloc[0].get("level", 5), 5)
+        wins       = _safe_int(row.iloc[0].get("wins", 0))
+        losses     = _safe_int(row.iloc[0].get("losses", 0))
+        badges_n   = _safe_int(row.iloc[0].get("badges", 0))
 
         sprite_url = f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{poke_id}.png"
 
