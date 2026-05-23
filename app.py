@@ -12,6 +12,7 @@ import random
 from utils.pokemon_api import get_random_starters, get_pokemon_sprite
 from utils.game_state import init_session_state
 from utils.csv_manager import load_teams, save_teams, init_csv
+from utils.captures_manager import init_captures_csv
 
 st.set_page_config(
     page_title="Pokémon Journeys",
@@ -161,6 +162,7 @@ h3, h4 { font-family: 'VT323', monospace; font-size: 1.6rem; letter-spacing: 1px
 # ── Init ──────────────────────────────────────────────────────────────────────
 init_session_state()
 init_csv()
+init_captures_csv()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
