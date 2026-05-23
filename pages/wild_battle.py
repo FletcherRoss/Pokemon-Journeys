@@ -286,6 +286,28 @@ def render():
                         st.rerun()
                     else:
                         st.info(f"{my['name']} can't evolve further right now.")
+
+        # ── IRL battle override ──────────────────────────────────────────────
+        with st.expander("🎮 Log an outside battle"):
+            st.markdown(
+                "<small style='color:var(--text-muted)'>Battled outside the app? "
+                "Record the result here to keep your stats up to date.</small>",
+                unsafe_allow_html=True,
+            )
+            irl_result = st.radio(
+                "Result:", ["Win", "Loss"], horizontal=True, key="irl_result_radio"
+            )
+            if st.button("✅ Log this battle", key="irl_log_btn", use_container_width=True):
+                _record_result("win" if irl_result == "Win" else "lose")
+                if irl_result == "Win":
+                    # Give some XP and trigger level-up check
+                    import random as _r
+                    st.session_state.my_xp += _r.randint(15, 35)
+                    level_up_check()
+                    st.success("🏆 Win recorded! Stats updated.")
+                else:
+                    st.warning("💀 Loss recorded. Better luck next time!")
+                st.rerun()
         return
 
     # ── Post-battle result screen ───────────────────────────────────────────
@@ -364,10 +386,28 @@ def render():
                 st.rerun()
 
     st.markdown("---")
-    if st.button("🏃 Run away!"):
-        st.session_state.battle_log.append("Got away safely!")
-        reset_battle()
-        st.rerun()
+    run_col, override_col = st.columns(2)
+    with run_col:
+        if st.button("🏃 Run away!", use_container_width=True):
+            st.session_state.battle_log.append("Got away safely!")
+            reset_battle()
+            st.rerun()
+    with override_col:
+        if st.button("🎮 Override — I won IRL!", use_container_width=True):
+            opp = st.session_state.opponent_pokemon
+            import random as _r
+            xp_gain = _r.randint(15, 35)
+            st.session_state.my_xp += xp_gain
+            leveled = level_up_check()
+            log = st.session_state.battle_log
+            log.append(f"[OVERRIDE] Battle won outside the app! +{xp_gain} XP")
+            if leveled:
+                log.append(f"⬆️ {st.session_state.my_pokemon['name']} grew to level {st.session_state.my_level}!")
+            st.session_state.battle_log = log[-20:]
+            st.session_state.battle_result = "win"
+            st.session_state.battle_active = False
+            _record_result("win")
+            st.rerun()
 
     if st.session_state.battle_log:
         st.markdown("#### Battle Log")
