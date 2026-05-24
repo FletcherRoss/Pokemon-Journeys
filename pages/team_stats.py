@@ -340,6 +340,8 @@ def _captures_levelup_grid(trainer: str, captures_df: pd.DataFrame):
     cols_per_row = 3
     indices = list(trainer_caps.index)
 
+    move_expanders = []  # collect (poke_id, name, current_moves, cap_idx) to render below grid
+
     for row_start in range(0, len(indices), cols_per_row):
         chunk_idx = indices[row_start:row_start + cols_per_row]
         cols = st.columns(cols_per_row)
@@ -357,26 +359,23 @@ def _captures_levelup_grid(trainer: str, captures_df: pd.DataFrame):
 
             with col:
                 evo_badge = (
-                    '<div style="font-size:0.65rem;color:#FFCB05;margin-top:2px;">✨ Can evolve!</div>'
+                    '<div style="font-size:0.65rem;color:#FFCB05;margin-top:2px;">&#10024; Can evolve!</div>'
                     if evo_available else ""
                 )
-                if current_moves:
-                    moves_names = ' · '.join(m['name'] for m in current_moves)
-                    moves_preview = f'<div style="font-size:0.6rem;color:var(--text-muted);margin-top:3px;">⚔️ {moves_names}</div>'
-                else:
-                    moves_preview = '<div style="font-size:0.6rem;color:var(--text-muted);margin-top:3px;">⚔️ No moves set</div>'
-                st.markdown(f"""
-                <div class="pokemon-card" style="cursor:default;padding:0.9rem 0.6rem;margin-bottom:4px;">
-                    <img src="{sprite}" width="75" style="image-rendering:pixelated"/>
-                    <div style="font-size:0.8rem;font-weight:700;margin:4px 0;">{name}</div>
-                    <div style="margin-bottom:4px;">{types}</div>
-                    <span style="background:var(--poke-accent);border:1px solid {color};
-                        border-radius:20px;padding:2px 10px;font-size:0.8rem;font-weight:700;">
-                        Lv. {cur_lv}
-                    </span>
-                    {evo_badge}
-                    {moves_preview}
-                </div>""", unsafe_allow_html=True)
+                moves_names = ' &middot; '.join(m['name'] for m in current_moves) if current_moves else 'No moves set'
+                moves_line  = f'<div style="font-size:0.6rem;color:#a0a8c0;margin-top:3px;">&#9876; {moves_names}</div>'
+
+                st.markdown(
+                    '<div class="pokemon-card" style="cursor:default;padding:0.9rem 0.6rem;margin-bottom:4px;">'
+                    f'<img src="{sprite}" width="75" style="image-rendering:pixelated"/>'
+                    f'<div style="font-size:0.8rem;font-weight:700;margin:4px 0;">{name}</div>'
+                    f'<div style="margin-bottom:4px;">{types}</div>'
+                    f'<span style="background:#0f3460;border:1px solid {color};'
+                    f'border-radius:20px;padding:2px 10px;font-size:0.8rem;font-weight:700;">Lv. {cur_lv}</span>'
+                    + evo_badge + moves_line +
+                    '</div>',
+                    unsafe_allow_html=True
+                )
 
                 if st.button("⬆️", key=f"lvlup_cap_{cap_idx}",
                              use_container_width=True, help=f"Level up {name}"):
@@ -389,8 +388,13 @@ def _captures_levelup_grid(trainer: str, captures_df: pd.DataFrame):
                         st.toast(f"⬆️ {name} is now Lv. {cur_lv + 1}!", icon="⬆️")
                     st.rerun()
 
-                with st.expander("⚔️ Moves", expanded=False):
-                    _move_selector(trainer, poke_id, name, current_moves, f"cap_{cap_idx}")
+            move_expanders.append((poke_id, name, current_moves, cap_idx))
+
+    # Render move selectors outside the columns context to avoid HTML rendering issues
+    st.markdown("##### ⚔️ Edit Movesets")
+    for poke_id, name, current_moves, cap_idx in move_expanders:
+        with st.expander(f"⚔️ {name}'s moves", expanded=False):
+            _move_selector(trainer, poke_id, name, current_moves, f"cap_{cap_idx}")
 
 
 # ── Main render ───────────────────────────────────────────────────────────────
