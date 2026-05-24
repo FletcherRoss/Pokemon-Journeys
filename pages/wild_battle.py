@@ -96,8 +96,7 @@ def _build_team_roster(trainer: str) -> list[dict]:
             })
 
     # Captured Pokémon
-    caps = load_captures()
-    trainer_caps = caps[caps["trainer"] == trainer]
+    trainer_caps = get_active_captures(trainer)
     for idx, cap in trainer_caps.iterrows():
         try:
             pid = int(float(cap["pokemon_id"]))
