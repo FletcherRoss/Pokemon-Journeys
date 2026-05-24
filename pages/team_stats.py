@@ -137,13 +137,21 @@ def _move_selector(pokemon_id: int, pokemon_name: str, current_moves: list[str],
             ⚔️ Move Set — pick up to 4
         </div>""", unsafe_allow_html=True)
 
+    # Guard against invalid pokemon_id
+    if not pokemon_id or pokemon_id <= 0:
+        st.info("No Pokémon selected yet.")
+        return
+
     # Load all learnable moves (cached)
     with st.spinner(f"Loading {pokemon_name}'s learnable moves..."):
-        all_moves = fetch_all_learnable_moves(pokemon_id)
+        try:
+            all_moves = fetch_all_learnable_moves(pokemon_id)
+        except Exception as e:
+            st.warning(f"Could not load moves: {e}")
+            return
 
     if not all_moves:
         st.warning("Could not load moves from PokéAPI.")
-        st.markdown("</div>", unsafe_allow_html=True)
         return
 
     # Build display options keyed by canonical name
@@ -157,10 +165,13 @@ def _move_selector(pokemon_id: int, pokemon_name: str, current_moves: list[str],
     name_to_label = {v: k for k, v in move_options.items()}
     name_to_label_lower = {v.lower(): k for k, v in move_options.items()}
     def _find_label(move_name: str) -> str | None:
-        if move_name in name_to_label:
-            return name_to_label[move_name]
-        return name_to_label_lower.get(move_name.lower())
-    current_labels = [_find_label(n) for n in current_moves if _find_label(n)]
+        try:
+            if move_name in name_to_label:
+                return name_to_label[move_name]
+            return name_to_label_lower.get(str(move_name).lower())
+        except Exception:
+            return None
+    current_labels = [lbl for n in current_moves for lbl in [_find_label(n)] if lbl]
 
     # Type filter
     all_types = sorted({m["type"] for m in all_moves})
