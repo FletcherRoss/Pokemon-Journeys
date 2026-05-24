@@ -77,18 +77,37 @@ def hp_bar_color(pct: float) -> str:
         return "#F44336"
 
 
-def damage_calc(attacker: dict, defender: dict, move: dict, attacker_level: int = 5) -> int:
-    """Gen-1-inspired damage formula."""
+def damage_calc(attacker: dict, defender: dict, move: dict, attacker_level: int = 5) -> tuple[int, bool]:
+    """Gen-1-inspired damage formula. Returns (damage, hit) where hit=False means the move missed."""
+    import random
+
+    # Accuracy check — roll 1-100, must be <= move accuracy
+    accuracy = move.get("accuracy") or 100
+    hit = random.randint(1, 100) <= accuracy
+    if not hit:
+        return 0, False
+
     power = move.get("power", 40) or 40
     atk   = attacker.get("attack", 49)
     df_   = defender.get("defense", 49)
     # STAB
     stab = 1.5 if move.get("type") in attacker.get("types", []) else 1.0
     # Random factor
-    import random
     rand = random.uniform(0.85, 1.0)
     dmg  = int(((2 * attacker_level / 5 + 2) * power * atk / df_ / 50 + 2) * stab * rand)
-    return max(1, dmg)
+    return max(1, dmg), True
+
+
+def speed_order(my: dict, opp: dict) -> tuple[bool, int, int]:
+    """Returns (player_goes_first, my_speed, opp_speed)."""
+    import random
+    my_spd  = my.get("speed", 45)
+    opp_spd = opp.get("speed", 45)
+    if my_spd == opp_spd:
+        player_first = random.choice([True, False])
+    else:
+        player_first = my_spd > opp_spd
+    return player_first, my_spd, opp_spd
 
 
 def reset_battle():
