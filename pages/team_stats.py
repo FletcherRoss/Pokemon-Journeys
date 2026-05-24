@@ -1,4 +1,4 @@
-import sys, os, json
+import sys, os
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
@@ -13,6 +13,10 @@ from utils.captures_manager import (
 )
 from utils.pokemon_api import (
     get_evolution, fetch_pokemon, type_badge_html, fetch_all_learnable_moves
+)
+from utils.movesets_manager import (
+    init_movesets_csv, load_movesets, save_moveset, get_moveset,
+    delete_moveset, get_all_trainer_movesets
 )
 
 GYM_INFO = [
@@ -67,20 +71,6 @@ def _type_pills(types_str: str) -> str:
     return html
 
 
-def _parse_moves(raw) -> list[str]:
-    """Parse selected_moves field from CSV (JSON string or empty)."""
-    if not raw or str(raw).strip() in ("", "nan"):
-        return []
-    try:
-        return json.loads(str(raw))
-    except Exception:
-        return []
-
-
-def _moves_to_json(moves: list[str]) -> str:
-    return json.dumps(moves)
-
-
 # ── Evolution animation ───────────────────────────────────────────────────────
 
 def _show_evolution_animation(old_poke_id: int, old_name: str, new_poke: dict):
@@ -124,10 +114,10 @@ def _show_evolution_animation(old_poke_id: int, old_name: str, new_poke: dict):
 
 # ── Move selector ─────────────────────────────────────────────────────────────
 
-def _move_selector(pokemon_id: int, pokemon_name: str, current_moves: list[str], save_fn, key_prefix: str):
+def _move_selector(trainer: str, pokemon_id: int, pokemon_name: str, current_moves: list[dict], key_prefix: str):
     """
-    Renders a searchable move picker. Calls save_fn(selected_move_names) when saved.
-    current_moves: list of currently selected move name strings.
+    Renders a searchable move picker. Saves directly to movesets.csv.
+    current_moves: list of move dicts (from get_moveset()).
     """
     st.markdown(f"""
     <div style="background:rgba(0,0,0,0.2);border:1px solid var(--poke-blue);
@@ -171,7 +161,9 @@ def _move_selector(pokemon_id: int, pokemon_name: str, current_moves: list[str],
             return name_to_label_lower.get(str(move_name).lower())
         except Exception:
             return None
-    current_labels = [lbl for n in current_moves for lbl in [_find_label(n)] if lbl]
+    # current_moves is a list of dicts from movesets.csv
+    current_move_names = [m["name"] for m in current_moves if isinstance(m, dict)]
+    current_labels = [lbl for n in current_move_names for lbl in [_find_label(n)] if lbl]
 
     # Type filter
     all_types = sorted({m["type"] for m in all_moves})
@@ -234,12 +226,25 @@ def _move_selector(pokemon_id: int, pokemon_name: str, current_moves: list[str],
     with col_save:
         if st.button("💾 Save moveset", key=f"{key_prefix}_save", use_container_width=True):
             final_names = [move_options[l] for l in full_selection if l in move_options]
-            save_fn(final_names)
+            # Build full move dicts from all_moves lookup
+            move_map  = {m["name"]: m for m in all_moves}
+            move_map_lower = {m["name"].lower(): m for m in all_moves}
+            final_dicts = []
+            for name in final_names:
+                m = move_map.get(name) or move_map_lower.get(name.lower())
+                if m:
+                    final_dicts.append(m)
+            save_moveset(trainer, pokemon_id, pokemon_name, final_dicts)
+            # Sync active session moves if this is the current trainer's active pokemon
+            if st.session_state.get("trainer_name") == trainer:
+                active = st.session_state.get("my_pokemon", {})
+                if active.get("id") == pokemon_id and final_dicts:
+                    st.session_state.my_moves = final_dicts
             st.toast(f"✅ Moveset saved for {pokemon_name}!", icon="✅")
             st.rerun()
     with col_clear:
         if st.button("🗑️ Clear moves", key=f"{key_prefix}_clear", use_container_width=True):
-            save_fn([])
+            delete_moveset(trainer, pokemon_id)
             st.toast(f"Moveset cleared for {pokemon_name}.", icon="🗑️")
             st.rerun()
 
@@ -263,7 +268,7 @@ def _starter_levelup_card(trainer: str, teams_df: pd.DataFrame):
 
     color  = TRAINER_COLORS.get(trainer, "#888")
     sprite = _sprite(starter_id, "large")
-    current_moves = _parse_moves(r.get("selected_moves", ""))
+    current_moves = get_moveset(trainer, starter_id)
 
     col_img, col_info, col_btn = st.columns([1, 2, 1])
     with col_img:
@@ -280,7 +285,7 @@ def _starter_levelup_card(trainer: str, teams_df: pd.DataFrame):
                 </span>
             </div>
             <div style="margin-top:4px;font-size:0.75rem;color:var(--text-muted);">
-                {'⚔️ ' + ' · '.join(current_moves) if current_moves else '⚔️ No moves set'}
+                {'⚔️ ' + ' · '.join(m['name'] for m in current_moves) if current_moves else '⚔️ No moves set'}
             </div>
         </div>""", unsafe_allow_html=True)
     with col_btn:
@@ -309,19 +314,7 @@ def _starter_levelup_card(trainer: str, teams_df: pd.DataFrame):
 
     # Move selector expander
     with st.expander(f"⚔️ Edit {starter}'s moveset"):
-        def save_starter_moves(selected_names):
-            df2 = load_teams()
-            df2 = update_trainer(df2, trainer, selected_moves=_moves_to_json(selected_names))
-            save_teams(df2)
-            # Sync to session if active trainer
-            if st.session_state.get("trainer_name") == trainer and selected_names:
-                from utils.pokemon_api import fetch_all_learnable_moves as _fam
-                all_m = _fam(starter_id)
-                move_map = {m["name"]: m for m in all_m}
-                st.session_state.my_moves = [move_map[n] for n in selected_names if n in move_map]
-
-        _move_selector(starter_id, starter, current_moves,
-                       save_starter_moves, f"starter_{trainer}")
+        _move_selector(trainer, starter_id, starter, current_moves, f"starter_{trainer}")
 
 
 # ── Captured Pokémon grid ─────────────────────────────────────────────────────
@@ -350,7 +343,7 @@ def _captures_levelup_grid(trainer: str, captures_df: pd.DataFrame):
             sprite  = _sprite(poke_id)
             types   = _type_pills(cap.get("types", "normal"))
             color   = TRAINER_COLORS.get(trainer, "#888")
-            current_moves = _parse_moves(cap.get("selected_moves", ""))
+            current_moves = get_moveset(trainer, poke_id)
             evo_available = get_evolution(poke_id) is not None
 
             with col:
@@ -360,7 +353,7 @@ def _captures_levelup_grid(trainer: str, captures_df: pd.DataFrame):
                 )
                 moves_preview = (
                     f'<div style="font-size:0.6rem;color:var(--text-muted);margin-top:3px;">'
-                    f'⚔️ {" · ".join(current_moves)}</div>'
+                    f'⚔️ {" · ".join(m["name"] for m in current_moves)}</div>'
                     if current_moves else
                     '<div style="font-size:0.6rem;color:var(--text-muted);margin-top:3px;">⚔️ No moves set</div>'
                 )
@@ -389,23 +382,14 @@ def _captures_levelup_grid(trainer: str, captures_df: pd.DataFrame):
                     st.rerun()
 
                 with st.expander("⚔️ Moves", expanded=False):
-                    def _make_save_fn(idx, pid, pname):
-                        def save_cap_moves(selected_names):
-                            df2 = load_captures()
-                            df2 = df2.astype(object)
-                            df2.at[idx, "selected_moves"] = _moves_to_json(selected_names)
-                            save_captures(df2)
-                        return save_cap_moves
-
-                    _move_selector(poke_id, name, current_moves,
-                                   _make_save_fn(cap_idx, poke_id, name),
-                                   f"cap_{cap_idx}")
+                    _move_selector(trainer, poke_id, name, current_moves, f"cap_{cap_idx}")
 
 
 # ── Main render ───────────────────────────────────────────────────────────────
 
 def render():
     init_captures_csv()
+    init_movesets_csv()
 
     # Evolution animation
     if "_evo_event" in st.session_state:
@@ -428,8 +412,6 @@ def render():
         lambda r: r["level_caught"] if str(r.get("current_level", "")).strip() in ("", "nan")
         else r["current_level"], axis=1
     )
-    if "selected_moves" not in teams_df.columns:
-        teams_df["selected_moves"] = ""
 
     if teams_df.empty:
         st.info("No journey data yet. Head to Home and choose a trainer!")
