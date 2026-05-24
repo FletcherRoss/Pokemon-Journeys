@@ -187,16 +187,19 @@ def _move_selector(trainer: str, pokemon_id: int, pokemon_name: str, current_mov
     )
 
     # Show current full selection (across filter)
+    # Merge persisted labels + newly selected, deduplicated, capped at 4
+    # Use move_options (label→name) to validate labels, not name_to_label (name→label)
     full_selection = list(dict.fromkeys(
-        current_labels + [l for l in selected_labels if l not in current_labels]
+        [l for l in selected_labels] +
+        [l for l in current_labels if l not in selected_labels]
     ))
-    full_selection = [l for l in full_selection if l in name_to_label][:4]
+    full_selection = [l for l in full_selection if l in move_options][:4]
 
     # Preview current 4
     if full_selection:
         preview_html = ""
         for label in full_selection:
-            name = name_to_label[label]
+            name = move_options.get(label, "")
             move = next((m for m in all_moves if m["name"] == name), None)
             if move:
                 tc = TYPE_COLORS.get(move["type"], "#888")
