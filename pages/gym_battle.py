@@ -8,7 +8,7 @@ import random
 import streamlit as st
 from utils.pokemon_api import get_gym_leader_team, fetch_moves, type_badge_html
 from utils.csv_manager import load_teams, save_teams, update_trainer
-from utils.game_state import hp_percent, hp_bar_color, damage_calc, level_up_check
+from utils.game_state import hp_percent, hp_bar_color, damage_calc, speed_order, level_up_check
 
 GYM_INFO = [
     {"name": "Brock",   "title": "Rock Gym",    "type": "rock",    "emoji": "🪨", "badge": "Boulder Badge",  "badge_key": "badge_rock"},
@@ -112,9 +112,12 @@ def _gym_attack(move: dict):
     opp_move = st.session_state.gym_leader_moves[leader_idx]
 
     # Player attacks
-    dmg = damage_calc(my, opp, move, st.session_state.my_level)
-    leader_hps[leader_idx] = max(0, leader_hps[leader_idx] - dmg)
-    log.append(f"➤ {my['name']} used {move['name']}! ({dmg} dmg)")
+    dmg, hit = damage_calc(my, opp, move, st.session_state.my_level)
+    if not hit:
+        log.append(f"➤ {my['name']} used {move['name']}... but it missed!")
+    else:
+        leader_hps[leader_idx] = max(0, leader_hps[leader_idx] - dmg)
+        log.append(f"➤ {my['name']} used {move['name']}! ({dmg} dmg)")
     st.session_state.gym_leader_hp = leader_hps
 
     if leader_hps[leader_idx] <= 0:
@@ -138,9 +141,12 @@ def _gym_attack(move: dict):
 
     # Opponent attacks back
     opp_move_pick = random.choice(opp_move) if isinstance(opp_move, list) else opp_move
-    opp_dmg = damage_calc(opp, my, opp_move_pick)
-    st.session_state.my_current_hp = max(0, st.session_state.my_current_hp - opp_dmg)
-    log.append(f"➤ {opp['name']} used {opp_move_pick['name']}! ({opp_dmg} dmg)")
+    opp_dmg, opp_hit = damage_calc(opp, my, opp_move_pick)
+    if not opp_hit:
+        log.append(f"➤ {opp['name']} used {opp_move_pick['name']}... but it missed!")
+    else:
+        st.session_state.my_current_hp = max(0, st.session_state.my_current_hp - opp_dmg)
+        log.append(f"➤ {opp['name']} used {opp_move_pick['name']}! ({opp_dmg} dmg)")
 
     if st.session_state.my_current_hp <= 0:
         log.append(f"💀 {my['name']} fainted! You blacked out...")
