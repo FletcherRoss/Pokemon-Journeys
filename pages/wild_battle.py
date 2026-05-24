@@ -9,7 +9,7 @@ import streamlit as st
 from utils.pokemon_api import get_random_wild, fetch_moves, fetch_pokemon, type_badge_html
 from utils.csv_manager import load_teams, save_teams, update_trainer
 from utils.captures_manager import (
-    add_capture, get_capture_count, load_captures, init_captures_csv
+    add_capture, get_capture_count, load_captures, init_captures_csv, level_up_team
 )
 from utils.game_state import (
     hp_percent, hp_bar_color, damage_calc, speed_order, reset_battle, level_up_check
@@ -279,6 +279,16 @@ def _record_result(result: str):
         level  = st.session_state.my_level
         df = update_trainer(df, trainer, wins=wins, losses=losses, level=level)
         save_teams(df)
+    if result == "win":
+        lv_msgs = level_up_team(trainer, amount=1)
+        log = st.session_state.get("battle_log", [])
+        log.extend(lv_msgs)
+        st.session_state.battle_log = log[-20:]
+        # Sync starter level to session
+        from utils.csv_manager import load_teams as _lt
+        r2 = _lt()[_lt()["trainer"] == trainer]
+        if len(r2):
+            st.session_state.my_level = int(float(r2.iloc[0].get("level", 5) or 5))
     if result == "lose":
         st.session_state.my_current_hp = max(1, st.session_state.my_max_hp // 5)
 
