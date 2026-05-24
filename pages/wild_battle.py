@@ -9,7 +9,8 @@ import streamlit as st
 from utils.pokemon_api import get_random_wild, fetch_moves, fetch_pokemon, type_badge_html
 from utils.csv_manager import load_teams, save_teams, update_trainer
 from utils.captures_manager import (
-    add_capture, get_capture_count, load_captures, init_captures_csv, level_up_team
+    add_capture, get_capture_count, load_captures, init_captures_csv, level_up_team,
+    get_active_captures
 )
 from utils.game_state import (
     hp_percent, hp_bar_color, damage_calc, speed_order, reset_battle, level_up_check
