@@ -33,9 +33,37 @@ def _guard() -> bool:
     if not st.session_state.trainer_name:
         st.warning("⚠️ Choose a trainer on the Home page first!")
         return False
+
     if not st.session_state.get("my_pokemon"):
-        st.warning("⚠️ Choose your starter Pokémon on the Home page first!")
-        return False
+        trainer = st.session_state.trainer_name
+        df = load_teams()
+        row = df[df["trainer"] == trainer]
+        if len(row):
+            r = row.iloc[0]
+            try:
+                poke_id = int(float(r.get("starter_id", 0) or 0))
+                level   = int(float(r.get("level", 5) or 5))
+            except (ValueError, TypeError):
+                poke_id, level = 0, 5
+            if poke_id > 0:
+                from utils.pokemon_api import fetch_pokemon as _fp, fetch_moves as _fm
+                poke = _fp(poke_id)
+                poke["level"] = level
+                st.session_state.my_pokemon    = poke
+                st.session_state.my_max_hp     = poke["hp"]
+                st.session_state.my_current_hp = poke["hp"]
+                st.session_state.my_level      = level
+                from utils.movesets_manager import get_moveset, init_movesets_csv
+                init_movesets_csv()
+                custom = get_moveset(trainer, poke_id)
+                st.session_state.my_moves = custom if custom else _fm(poke_id)
+            else:
+                st.warning("⚠️ Choose your starter Pokémon on the Home page first!")
+                return False
+        else:
+            st.warning("⚠️ Choose a trainer on the Home page first!")
+            return False
+
     return True
 
 
