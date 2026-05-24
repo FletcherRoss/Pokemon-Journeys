@@ -9,7 +9,7 @@ import streamlit as st
 from utils.pokemon_api import get_gym_leader_team, fetch_moves, type_badge_html, fetch_pokemon
 from utils.csv_manager import load_teams, save_teams, update_trainer
 from utils.game_state import hp_percent, hp_bar_color, damage_calc, speed_order, level_up_check
-from utils.captures_manager import load_captures, init_captures_csv
+from utils.captures_manager import load_captures, get_active_captures, init_captures_csv
 from utils.movesets_manager import get_moveset, init_movesets_csv
 
 GYM_INFO = [
@@ -123,8 +123,7 @@ def _build_roster(trainer: str) -> list[dict]:
             moves  = custom if custom else fetch_moves(sid)
             roster.append({"poke": poke, "moves": moves, "label": f"⭐ {poke['name']} (Starter, Lv.{slv})"})
 
-    caps = load_captures()
-    for _, cap in caps[caps["trainer"] == trainer].iterrows():
+    for _, cap in get_active_captures(trainer).iterrows():
         try:
             pid = int(float(cap["pokemon_id"]))
             lv  = int(float(cap.get("current_level") or cap.get("level_caught") or 5))
