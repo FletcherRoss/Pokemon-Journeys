@@ -277,6 +277,7 @@ def _starter_levelup_card(trainer: str, teams_df: pd.DataFrame):
     with col_img:
         st.image(sprite, width=90)
     with col_info:
+        moves_line = '⚔️ ' + ' · '.join(m['name'] for m in current_moves) if current_moves else '⚔️ No moves set'
         st.markdown(f"""
         <div style="padding:4px 0">
             <div style="font-weight:700;font-size:1rem;color:{color};">{starter}</div>
@@ -288,7 +289,7 @@ def _starter_levelup_card(trainer: str, teams_df: pd.DataFrame):
                 </span>
             </div>
             <div style="margin-top:4px;font-size:0.75rem;color:var(--text-muted);">
-                {'⚔️ ' + ' · '.join(m['name'] for m in current_moves) if current_moves else '⚔️ No moves set'}
+                {moves_line}
             </div>
         </div>""", unsafe_allow_html=True)
     with col_btn:
@@ -354,12 +355,11 @@ def _captures_levelup_grid(trainer: str, captures_df: pd.DataFrame):
                     '<div style="font-size:0.65rem;color:#FFCB05;margin-top:2px;">✨ Can evolve!</div>'
                     if evo_available else ""
                 )
-                moves_preview = (
-                    f'<div style="font-size:0.6rem;color:var(--text-muted);margin-top:3px;">'
-                    f'⚔️ {" · ".join(m["name"] for m in current_moves)}</div>'
-                    if current_moves else
-                    '<div style="font-size:0.6rem;color:var(--text-muted);margin-top:3px;">⚔️ No moves set</div>'
-                )
+                if current_moves:
+                    moves_names = ' · '.join(m['name'] for m in current_moves)
+                    moves_preview = f'<div style="font-size:0.6rem;color:var(--text-muted);margin-top:3px;">⚔️ {moves_names}</div>'
+                else:
+                    moves_preview = '<div style="font-size:0.6rem;color:var(--text-muted);margin-top:3px;">⚔️ No moves set</div>'
                 st.markdown(f"""
                 <div class="pokemon-card" style="cursor:default;padding:0.9rem 0.6rem;margin-bottom:4px;">
                     <img src="{sprite}" width="75" style="image-rendering:pixelated"/>
