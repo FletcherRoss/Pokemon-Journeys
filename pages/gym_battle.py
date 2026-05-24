@@ -9,7 +9,7 @@ import streamlit as st
 from utils.pokemon_api import get_gym_leader_team, fetch_moves, type_badge_html, fetch_pokemon
 from utils.csv_manager import load_teams, save_teams, update_trainer
 from utils.game_state import hp_percent, hp_bar_color, damage_calc, speed_order, level_up_check
-from utils.captures_manager import load_captures, get_active_captures, init_captures_csv
+from utils.captures_manager import load_captures, get_active_captures, init_captures_csv, level_up_team
 from utils.movesets_manager import get_moveset, init_movesets_csv
 
 GYM_INFO = [
@@ -386,6 +386,15 @@ def _record_gym_win(gym_idx: int):
     level  = st.session_state.my_level
     df = update_trainer(df, trainer, wins=wins, badges=badges, level=level, **{badge_key: 1})
     save_teams(df)
+    # Level up entire active team by 2 for gym win
+    lv_msgs = level_up_team(trainer, amount=2)
+    log = st.session_state.get("battle_log", [])
+    log.extend(lv_msgs)
+    st.session_state.battle_log = log[-30:]
+    from utils.csv_manager import load_teams as _lt
+    r2 = _lt()[_lt()["trainer"] == trainer]
+    if len(r2):
+        st.session_state.my_level = int(float(r2.iloc[0].get("level", 5) or 5))
 
 
 # ── Main render ───────────────────────────────────────────────────────────────
