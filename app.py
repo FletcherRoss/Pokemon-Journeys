@@ -182,12 +182,6 @@ with st.sidebar:
         </div>""", unsafe_allow_html=True)
 
     st.markdown("---")
-    if st.button("🔄 Reset My Journey"):
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
-        st.rerun()
-
-    st.markdown("---")
     st.markdown("### 🗺 Navigation")
     page = st.radio("Go to:", ["🏠 Home", "⚔️ Wild Battle", "🏟️ Gym Battle", "📊 Team Stats"],
                     label_visibility="collapsed")
