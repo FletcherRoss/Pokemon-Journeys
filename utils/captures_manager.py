@@ -20,7 +20,7 @@ BRANCH      = "main"
 API_BASE    = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{CSV_PATH}"
 LOCAL_CSV   = os.path.join(os.path.dirname(__file__), "..", "data", "captures.csv")
 
-COLUMNS = ["trainer", "pokemon_name", "pokemon_id", "types", "level_caught", "current_level", "caught_at"]
+COLUMNS = ["trainer", "pokemon_name", "pokemon_id", "types", "level_caught", "current_level", "caught_at", "selected_moves"]
 
 
 def _github_token():
@@ -112,13 +112,14 @@ def add_capture(trainer: str, pokemon: dict, level_caught: int) -> pd.DataFrame:
     """Append a new capture row and save. Returns updated df."""
     df = load_captures()
     new_row = {
-        "trainer":       trainer,
-        "pokemon_name":  pokemon["name"],
-        "pokemon_id":    pokemon["id"],
-        "types":         "/".join(pokemon.get("types", ["normal"])),
-        "level_caught":  level_caught,
-        "current_level": level_caught,
-        "caught_at":     datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
+        "trainer":        trainer,
+        "pokemon_name":   pokemon["name"],
+        "pokemon_id":     pokemon["id"],
+        "types":          "/".join(pokemon.get("types", ["normal"])),
+        "level_caught":   level_caught,
+        "current_level":  level_caught,
+        "caught_at":      datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
+        "selected_moves": "",
     }
     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     save_captures(df)
