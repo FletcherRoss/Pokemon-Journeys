@@ -147,7 +147,21 @@ def render():
             st.session_state.my_current_hp = poke["hp"]
             st.session_state.my_level      = level
             if not st.session_state.get("my_moves"):
-                st.session_state.my_moves = fetch_moves(poke_id)
+                # Use custom selected moves if set, else fetch default
+                import json as _json
+                raw_moves = str(row.iloc[0].get("selected_moves", "")).strip()
+                if raw_moves and raw_moves not in ("", "nan"):
+                    try:
+                        move_names = _json.loads(raw_moves)
+                        from utils.pokemon_api import fetch_all_learnable_moves as _fam
+                        all_m = _fam(poke_id)
+                        move_map = {m["name"]: m for m in all_m}
+                        custom = [move_map[n] for n in move_names if n in move_map]
+                        st.session_state.my_moves = custom if custom else fetch_moves(poke_id)
+                    except Exception:
+                        st.session_state.my_moves = fetch_moves(poke_id)
+                else:
+                    st.session_state.my_moves = fetch_moves(poke_id)
         return
 
     # ── Step 2: Choose starter ──────────────────────────────────────────────
