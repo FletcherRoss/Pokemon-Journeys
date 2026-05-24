@@ -7,8 +7,11 @@ if str(ROOT) not in sys.path:
 import streamlit as st
 import pandas as pd
 from utils.csv_manager import load_teams, save_teams, update_trainer
-from utils.captures_manager import load_captures, save_captures, init_captures_csv, level_up_captured
-from utils.pokemon_api import type_badge_html
+from utils.captures_manager import (
+    load_captures, save_captures, init_captures_csv,
+    level_up_captured, check_and_evolve_captured, level_up_and_check_evolve,
+)
+from utils.pokemon_api import get_evolution, fetch_pokemon, type_badge_html
 
 GYM_INFO = [
     {"name": "Brock",   "emoji": "🪨", "badge_key": "badge_rock"},
@@ -43,9 +46,11 @@ def _safe_int(val, default=0):
         return default
 
 
-def _sprite(pokemon_id) -> str:
+def _sprite(pokemon_id, size="small") -> str:
     try:
         pid = int(float(pokemon_id))
+        if size == "large":
+            return f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{pid}.png"
         return f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{pid}.png"
     except Exception:
         return ""
@@ -58,6 +63,112 @@ def _type_pills(types_str: str) -> str:
         tc = TYPE_COLORS.get(t, "#888")
         html += f'<span class="type-badge" style="background:{tc};font-size:0.6rem;">{t}</span>'
     return html
+
+
+# ── Evolution animation ───────────────────────────────────────────────────────
+
+def _show_evolution_animation(old_poke_id: int, old_name: str, new_poke: dict):
+    """Full-screen-style evolution celebration with CSS animation."""
+    old_sprite = _sprite(old_poke_id, "large")
+    new_sprite = _sprite(new_poke["id"], "large")
+    new_types  = "".join(
+        f'<span class="type-badge" style="background:{TYPE_COLORS.get(t,"#888")};">{t}</span>'
+        for t in new_poke.get("types", ["normal"])
+    )
+
+    st.markdown(f"""
+    <style>
+    @keyframes evo-flash {{
+        0%   {{ filter: brightness(1); }}
+        20%  {{ filter: brightness(8) saturate(0); }}
+        40%  {{ filter: brightness(1); }}
+        60%  {{ filter: brightness(8) saturate(0); }}
+        80%  {{ filter: brightness(1); }}
+        100% {{ filter: brightness(1); }}
+    }}
+    @keyframes evo-grow {{
+        0%   {{ transform: scale(0.5) rotate(-5deg); opacity:0; }}
+        60%  {{ transform: scale(1.15) rotate(2deg); opacity:1; }}
+        100% {{ transform: scale(1) rotate(0deg); opacity:1; }}
+    }}
+    @keyframes evo-shimmer {{
+        0%   {{ box-shadow: 0 0 10px rgba(255,203,5,0.4); }}
+        50%  {{ box-shadow: 0 0 50px rgba(255,203,5,1), 0 0 80px rgba(255,255,255,0.6); }}
+        100% {{ box-shadow: 0 0 10px rgba(255,203,5,0.4); }}
+    }}
+    @keyframes fade-out {{
+        0%   {{ opacity:1; transform:scale(1); }}
+        100% {{ opacity:0; transform:scale(0.3); }}
+    }}
+    .evo-container {{
+        background: linear-gradient(135deg, #0a0a1a, #1a0a3a, #0a1a2a);
+        border: 3px solid var(--poke-yellow);
+        border-radius: 20px;
+        padding: 2rem 1rem;
+        text-align: center;
+        margin: 1rem 0;
+        animation: evo-shimmer 2s ease-in-out infinite;
+    }}
+    .evo-old {{
+        display: inline-block;
+        animation: fade-out 1.2s ease-in forwards;
+        animation-delay: 0.5s;
+    }}
+    .evo-arrow {{
+        font-size: 2.5rem;
+        color: var(--poke-yellow);
+        margin: 0 1rem;
+        vertical-align: middle;
+    }}
+    .evo-new {{
+        display: inline-block;
+        animation: evo-grow 1.2s cubic-bezier(0.175,0.885,0.32,1.275) forwards;
+        animation-delay: 0.8s;
+        opacity: 0;
+    }}
+    .evo-title {{
+        font-family: 'Press Start 2P', monospace;
+        font-size: 0.85rem;
+        color: var(--poke-yellow);
+        text-shadow: 0 0 20px rgba(255,203,5,0.8);
+        margin: 1rem 0 0.5rem 0;
+        animation: evo-flash 1.5s ease-in-out;
+    }}
+    </style>
+
+    <div class="evo-container">
+        <div class="evo-title">✨ WHAT?! {old_name.upper()} IS EVOLVING! ✨</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:1rem;margin:1.5rem 0;">
+            <div class="evo-old">
+                <img src="{old_sprite}" width="130"
+                     style="image-rendering:pixelated;filter:drop-shadow(0 0 12px rgba(255,255,255,0.6))"/>
+                <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">{old_name}</div>
+            </div>
+            <div class="evo-arrow">➜</div>
+            <div class="evo-new">
+                <img src="{new_sprite}" width="160"
+                     style="image-rendering:pixelated;filter:drop-shadow(0 0 20px rgba(255,203,5,0.9))"/>
+                <div style="font-size:0.95rem;font-weight:700;color:#fff;margin-top:4px;">
+                    {new_poke['name']}
+                </div>
+                <div style="margin-top:4px;">{new_types}</div>
+            </div>
+        </div>
+        <div style="font-size:0.8rem;color:var(--text-muted);">
+            ❤️ HP:{new_poke['hp']} &nbsp;
+            ⚔️ ATK:{new_poke['attack']} &nbsp;
+            🛡️ DEF:{new_poke['defense']} &nbsp;
+            ⚡ SPD:{new_poke['speed']}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.balloons()
+
+
+def _show_starter_evolution_animation(old_id: int, old_name: str, new_poke: dict):
+    """Same animation for starter evolution."""
+    _show_evolution_animation(old_id, old_name, new_poke)
 
 
 # ── Starter level-up card ─────────────────────────────────────────────────────
@@ -76,7 +187,7 @@ def _starter_levelup_card(trainer: str, teams_df: pd.DataFrame):
         return
 
     color  = TRAINER_COLORS.get(trainer, "#888")
-    sprite = f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{starter_id}.png"
+    sprite = _sprite(starter_id, "large")
 
     col_img, col_info, col_btn = st.columns([1, 2, 1])
     with col_img:
@@ -87,22 +198,38 @@ def _starter_levelup_card(trainer: str, teams_df: pd.DataFrame):
             <div style="font-weight:700;font-size:1rem;color:{color};">{starter}</div>
             <div style="font-size:0.8rem;color:var(--text-muted);">Starter Pokémon</div>
             <div style="margin-top:6px;">
-                <span style="
-                    background:var(--poke-accent);border:1px solid {color};
-                    border-radius:20px;padding:3px 12px;font-size:0.85rem;font-weight:700;
-                ">Lv. {level}</span>
+                <span style="background:var(--poke-accent);border:1px solid {color};
+                    border-radius:20px;padding:3px 12px;font-size:0.85rem;font-weight:700;">
+                    Lv. {level}
+                </span>
             </div>
         </div>""", unsafe_allow_html=True)
     with col_btn:
         st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
         if st.button("⬆️ Level Up", key=f"lvlup_starter_{trainer}", use_container_width=True):
             new_level = level + 1
-            updated = update_trainer(teams_df, trainer, level=new_level)
+            updated   = update_trainer(teams_df, trainer, level=new_level)
             save_teams(updated)
-            # Also update active session if this is the current trainer
             if st.session_state.get("trainer_name") == trainer:
                 st.session_state.my_level = new_level
-            st.toast(f"⬆️ {starter} is now Lv. {new_level}!", icon="⬆️")
+
+            # Check for evolution
+            evolved = get_evolution(starter_id)
+            if evolved:
+                # Update teams CSV with evolved pokemon
+                updated2 = update_trainer(updated, trainer,
+                    starter=evolved["name"], starter_id=evolved["id"])
+                save_teams(updated2)
+                if st.session_state.get("trainer_name") == trainer:
+                    st.session_state.my_pokemon    = evolved
+                    st.session_state.my_max_hp     = evolved["hp"]
+                    st.session_state.my_current_hp = evolved["hp"]
+                # Store evolution event for animation
+                st.session_state["_evo_event"] = {
+                    "old_id": starter_id, "old_name": starter, "new": evolved
+                }
+            else:
+                st.toast(f"⬆️ {starter} is now Lv. {new_level}!", icon="⬆️")
             st.rerun()
 
 
@@ -126,30 +253,44 @@ def _captures_levelup_grid(trainer: str, captures_df: pd.DataFrame):
 
         for col, cap_idx in zip(cols, chunk_idx):
             cap    = captures_df.loc[cap_idx]
-            sprite = _sprite(cap["pokemon_id"])
-            types  = _type_pills(cap.get("types", "normal"))
             cur_lv = _safe_int(
                 cap.get("current_level") or cap.get("level_caught"), 5
             )
-            name   = cap["pokemon_name"]
-            color  = TRAINER_COLORS.get(trainer, "#888")
+            poke_id = _safe_int(cap["pokemon_id"])
+            name    = cap["pokemon_name"]
+            sprite  = _sprite(poke_id)
+            types   = _type_pills(cap.get("types", "normal"))
+            color   = TRAINER_COLORS.get(trainer, "#888")
+
+            # Check if evolution is available at this level (preview)
+            evo_available = get_evolution(poke_id) is not None
 
             with col:
+                evo_badge = (
+                    '<div style="font-size:0.65rem;color:#FFCB05;margin-top:2px;">✨ Can evolve!</div>'
+                    if evo_available else ""
+                )
                 st.markdown(f"""
                 <div class="pokemon-card" style="cursor:default;padding:0.9rem 0.6rem;margin-bottom:4px;">
                     <img src="{sprite}" width="75" style="image-rendering:pixelated"/>
                     <div style="font-size:0.8rem;font-weight:700;margin:4px 0;">{name}</div>
                     <div style="margin-bottom:4px;">{types}</div>
-                    <span style="
-                        background:var(--poke-accent);border:1px solid {color};
-                        border-radius:20px;padding:2px 10px;font-size:0.8rem;font-weight:700;
-                    ">Lv. {cur_lv}</span>
+                    <span style="background:var(--poke-accent);border:1px solid {color};
+                        border-radius:20px;padding:2px 10px;font-size:0.8rem;font-weight:700;">
+                        Lv. {cur_lv}
+                    </span>
+                    {evo_badge}
                 </div>""", unsafe_allow_html=True)
 
-                if st.button("⬆️", key=f"lvlup_cap_{cap_idx}", use_container_width=True,
-                             help=f"Level up {name}"):
-                    level_up_captured(cap_idx)
-                    st.toast(f"⬆️ {name} is now Lv. {cur_lv + 1}!", icon="⬆️")
+                if st.button("⬆️", key=f"lvlup_cap_{cap_idx}",
+                             use_container_width=True, help=f"Level up {name}"):
+                    _, evolved = level_up_and_check_evolve(cap_idx)
+                    if evolved:
+                        st.session_state["_evo_event"] = {
+                            "old_id": poke_id, "old_name": name, "new": evolved
+                        }
+                    else:
+                        st.toast(f"⬆️ {name} is now Lv. {cur_lv + 1}!", icon="⬆️")
                     st.rerun()
 
 
@@ -158,12 +299,20 @@ def _captures_levelup_grid(trainer: str, captures_df: pd.DataFrame):
 def render():
     init_captures_csv()
 
+    # ── Evolution animation (shown at top if triggered) ───────────────────────
+    if "_evo_event" in st.session_state:
+        ev = st.session_state.pop("_evo_event")
+        _show_evolution_animation(ev["old_id"], ev["old_name"], ev["new"])
+        if st.button("🎉 Continue", use_container_width=False):
+            st.rerun()
+        return  # pause on evo screen until dismissed
+
     st.markdown("## 📊 Team Stats & Leaderboard")
 
     teams_df    = load_teams()
     captures_df = load_captures()
 
-    # Backfill current_level for older rows that didn't have it
+    # Backfill current_level for older rows
     if "current_level" not in captures_df.columns:
         captures_df["current_level"] = captures_df.get("level_caught", 5)
     captures_df["current_level"] = captures_df.apply(
@@ -200,12 +349,10 @@ def render():
         win_rate = f"{(wins/total*100):.0f}%" if total > 0 else "—"
 
         st.markdown(f"""
-        <div style="
-            background:linear-gradient(135deg,rgba(30,40,70,0.9),rgba(15,25,50,0.9));
+        <div style="background:linear-gradient(135deg,rgba(30,40,70,0.9),rgba(15,25,50,0.9));
             border:2px solid {color};border-radius:16px;
             padding:1.2rem 1.5rem;margin:0.8rem 0;
-            box-shadow:0 4px 16px rgba(0,0,0,0.3);
-        ">
+            box-shadow:0 4px 16px rgba(0,0,0,0.3);">
             <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
                 <span style="font-size:2rem">{medal}</span>
                 <div>
@@ -230,8 +377,9 @@ def render():
     st.markdown("---")
     st.markdown("### ⬆️ Level Up Pokémon")
     st.markdown(
-        "<small style='color:var(--text-muted)'>Use these buttons to level up your starter "
-        "and captured Pokémon after real-world battles.</small>",
+        "<small style='color:var(--text-muted)'>Level up your Pokémon here. "
+        "A <span style='color:#FFCB05'>✨ Can evolve!</span> badge means the next level-up "
+        "will trigger evolution.</small>",
         unsafe_allow_html=True,
     )
     st.markdown("<br>", unsafe_allow_html=True)
@@ -239,12 +387,10 @@ def render():
     trainer_tabs = st.tabs(["🌸 Addy", "⚡ Oakley", "🔥 Raelynn"])
     for tab, trainer in zip(trainer_tabs, ["Addy", "Oakley", "Raelynn"]):
         with tab:
-            color = TRAINER_COLORS[trainer]
-            st.markdown(f"#### Starter")
+            st.markdown("#### Starter")
             _starter_levelup_card(trainer, teams_df)
-
             st.markdown("---")
-            st.markdown(f"#### Captured Pokémon")
+            st.markdown("#### Captured Pokémon")
             _captures_levelup_grid(trainer, captures_df)
 
     # ── Charts ───────────────────────────────────────────────────────────────
@@ -276,7 +422,6 @@ def render():
     ]).set_index("Trainer")
     st.bar_chart(badge_df, color=["#FFCB05", "#333355"])
 
-    # ── Raw data ─────────────────────────────────────────────────────────────
     with st.expander("📋 Raw Data"):
         st.markdown("**teams.csv**")
         st.dataframe(teams_df, use_container_width=True)
