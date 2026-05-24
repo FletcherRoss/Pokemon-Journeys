@@ -8,6 +8,7 @@ import random
 import streamlit as st
 from utils.pokemon_api import fetch_pokemon, fetch_moves, type_badge_html
 from utils.csv_manager import load_teams, save_teams, update_trainer
+from utils.captures_manager import load_captures, init_captures_csv, get_active_captures, level_up_team
 from utils.captures_manager import load_captures, get_active_captures, init_captures_csv
 from utils.movesets_manager import get_moveset, init_movesets_csv
 from utils.game_state import hp_percent, hp_bar_color, damage_calc, speed_order, level_up_check
@@ -260,6 +261,11 @@ def _record_result(winner: str, loser: str):
             losses = _safe_int(row.iloc[0]["losses"]) + (1 if result == "loss" else 0)
             df = update_trainer(df, trainer, wins=wins, losses=losses)
     save_teams(df)
+    # Level up winner's active team by 1
+    lv_msgs = level_up_team(winner, amount=1)
+    log = st.session_state.get("tb_log", [])
+    log.extend(lv_msgs)
+    st.session_state.tb_log = log[-30:]
 
 
 # ── Phase renderers ───────────────────────────────────────────────────────────
