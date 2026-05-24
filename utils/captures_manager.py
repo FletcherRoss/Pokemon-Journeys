@@ -176,6 +176,62 @@ def check_and_evolve_captured(capture_index: int) -> dict | None:
     return evolved
 
 
+def level_up_team(trainer: str, amount: int = 1) -> list[str]:
+    """
+    Level up the trainer's starter and all active captured pokemon by `amount`.
+    Updates teams.csv for the starter and captures.csv for active captures.
+    Returns a list of level-up messages for the battle log.
+    """
+    import sys
+    from pathlib import Path
+    ROOT = Path(__file__).resolve().parent.parent
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from utils.csv_manager import load_teams, update_trainer, save_teams
+
+    messages = []
+
+    # ── Starter ───────────────────────────────────────────────────────────────
+    teams_df = load_teams()
+    row = teams_df[teams_df["trainer"] == trainer]
+    if len(row):
+        r = row.iloc[0]
+        try:
+            old_lv = int(float(r.get("level", 5) or 5))
+        except (ValueError, TypeError):
+            old_lv = 5
+        starter_name = str(r.get("starter", "")).strip()
+        if starter_name and starter_name not in ("", "nan"):
+            new_lv = old_lv + amount
+            teams_df = update_trainer(teams_df, trainer, level=new_lv)
+            save_teams(teams_df)
+            messages.append(f"⬆️ {starter_name} grew to Lv.{new_lv}!")
+
+    # ── Active captures ───────────────────────────────────────────────────────
+    caps_df = load_captures()
+    caps_df = caps_df.astype(object)
+    if "active" not in caps_df.columns:
+        caps_df["active"] = 1
+
+    trainer_mask = caps_df["trainer"] == trainer
+    active_mask  = caps_df["active"] == 1
+    active_idx   = caps_df[trainer_mask & active_mask].index
+
+    for idx in active_idx:
+        try:
+            cur_lv = int(float(caps_df.at[idx, "current_level"] or
+                               caps_df.at[idx, "level_caught"] or 5))
+        except (ValueError, TypeError):
+            cur_lv = 5
+        new_lv = cur_lv + amount
+        caps_df.at[idx, "current_level"] = new_lv
+        pname = str(caps_df.at[idx, "pokemon_name"])
+        messages.append(f"⬆️ {pname} grew to Lv.{new_lv}!")
+
+    save_captures(caps_df)
+    return messages
+
+
 def level_up_and_check_evolve(capture_index: int) -> tuple[pd.DataFrame, dict | None]:
     """Level up a captured pokemon and check for evolution. Returns (df, evolved_pokemon_or_None)."""
     df      = level_up_captured(capture_index)
