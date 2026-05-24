@@ -12,7 +12,7 @@ from utils.captures_manager import (
     add_capture, get_capture_count, load_captures, init_captures_csv
 )
 from utils.game_state import (
-    hp_percent, hp_bar_color, damage_calc, reset_battle, level_up_check
+    hp_percent, hp_bar_color, damage_calc, speed_order, reset_battle, level_up_check
 )
 
 CAPTURE_THRESHOLD = 10
@@ -53,12 +53,16 @@ def _hp_bar(label: str, current: int, maximum: int):
 def _show_pokemon_card(poke: dict, current_hp: int, label: str, animated: bool = False):
     sprite     = poke.get("sprite_anim") if animated else poke.get("sprite")
     types_html = " ".join(type_badge_html(t) for t in poke["types"])
+    spd = poke.get("speed", "?")
     st.markdown(f"""
     <div class="pokemon-card" style="cursor:default;">
         <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">{label}</div>
         <img src="{sprite}" width="120" style="image-rendering:pixelated"/>
         <div style="font-weight:700;margin:4px 0;">{poke['name']}</div>
         {types_html}
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:5px;">
+            ⚡ Speed: <b style="color:#F8D030;">{spd}</b>
+        </div>
     </div>""", unsafe_allow_html=True)
     _hp_bar("HP", current_hp, poke["hp"])
 
@@ -194,29 +198,69 @@ def _player_attack(move: dict):
     opp = st.session_state.opponent_pokemon
     log = st.session_state.battle_log
 
-    dmg = damage_calc(my, opp, move, st.session_state.my_level)
-    st.session_state.opponent_current_hp = max(0, st.session_state.opponent_current_hp - dmg)
-    log.append(f"➤ {my['name']} used {move['name']}! ({dmg} dmg)")
+    # Determine turn order based on speed
+    player_first, my_spd, opp_spd = speed_order(my, opp)
+    if my_spd == opp_spd:
+        log.append(f"⚡ Equal speed ({my_spd}) — turn order randomised!")
+    elif player_first:
+        log.append(f"⚡ {my['name']} is faster ({my_spd} vs {opp_spd}) — you go first!")
+    else:
+        log.append(f"⚡ {opp['name']} is faster ({opp_spd} vs {my_spd}) — opponent goes first!")
 
-    if st.session_state.opponent_current_hp <= 0:
-        xp_gain = random.randint(15, 35)
-        st.session_state.my_xp += xp_gain
-        leveled = level_up_check()
-        log.append(f"💥 Wild {opp['name']} fainted! +{xp_gain} XP")
-        if leveled:
-            log.append(f"⬆️ {my['name']} grew to level {st.session_state.my_level}!")
-        st.session_state.battle_result = "win"
-        st.session_state.battle_active = False
-        _record_result("win")
-        st.session_state.battle_log = log[-20:]
-        return
+    def do_player_turn():
+        dmg, hit = damage_calc(my, opp, move, st.session_state.my_level)
+        if not hit:
+            log.append(f"➤ {my['name']} used {move['name']}... but it missed! (Acc:{move.get('accuracy',100)}%)")
+            return False
+        st.session_state.opponent_current_hp = max(0, st.session_state.opponent_current_hp - dmg)
+        log.append(f"➤ {my['name']} used {move['name']}! ({dmg} dmg, Acc:{move.get('accuracy',100)}%)")
+        return st.session_state.opponent_current_hp <= 0
 
-    opp_move = random.choice(st.session_state.opponent_moves)
-    opp_dmg  = damage_calc(opp, my, opp_move)
-    st.session_state.my_current_hp = max(0, st.session_state.my_current_hp - opp_dmg)
-    log.append(f"➤ {opp['name']} used {opp_move['name']}! ({opp_dmg} dmg)")
+    def do_opp_turn():
+        opp_move = random.choice(st.session_state.opponent_moves)
+        opp_dmg, opp_hit = damage_calc(opp, my, opp_move)
+        if not opp_hit:
+            log.append(f"➤ {opp['name']} used {opp_move['name']}... but it missed! (Acc:{opp_move.get('accuracy',100)}%)")
+            return False
+        st.session_state.my_current_hp = max(0, st.session_state.my_current_hp - opp_dmg)
+        log.append(f"➤ {opp['name']} used {opp_move['name']}! ({opp_dmg} dmg, Acc:{opp_move.get('accuracy',100)}%)")
+        return st.session_state.my_current_hp <= 0
 
-    if st.session_state.my_current_hp <= 0:
+    if player_first:
+        opp_fainted = do_player_turn()
+        if opp_fainted:
+            xp_gain = random.randint(15, 35)
+            st.session_state.my_xp += xp_gain
+            leveled = level_up_check()
+            log.append(f"💥 Wild {opp['name']} fainted! +{xp_gain} XP")
+            if leveled:
+                log.append(f"⬆️ {my['name']} grew to level {st.session_state.my_level}!")
+            st.session_state.battle_result = "win"
+            st.session_state.battle_active = False
+            _record_result("win")
+            st.session_state.battle_log = log[-20:]
+            return
+        my_fainted = do_opp_turn()
+    else:
+        my_fainted = do_opp_turn()
+        if not my_fainted:
+            opp_fainted = do_player_turn()
+            if opp_fainted:
+                xp_gain = random.randint(15, 35)
+                st.session_state.my_xp += xp_gain
+                leveled = level_up_check()
+                log.append(f"💥 Wild {opp['name']} fainted! +{xp_gain} XP")
+                if leveled:
+                    log.append(f"⬆️ {my['name']} grew to level {st.session_state.my_level}!")
+                st.session_state.battle_result = "win"
+                st.session_state.battle_active = False
+                _record_result("win")
+                st.session_state.battle_log = log[-20:]
+                return
+        else:
+            my_fainted = True
+
+    if my_fainted or st.session_state.my_current_hp <= 0:
         log.append(f"💀 {my['name']} fainted...")
         st.session_state.battle_result = "lose"
         st.session_state.battle_active = False
@@ -484,6 +528,8 @@ def render():
                         {m['type']}</span></td>
                 <td style="padding:3px 8px;color:{'#F44336' if (m['power'] or 0)>=80 else '#FFC107' if (m['power'] or 0)>=50 else '#aaa'};">
                     {'💥 ' if (m['power'] or 0)>=80 else ''}{m['power'] or '—'} pwr</td>
+                <td style="padding:3px 8px;color:{'#4CAF50' if (m.get('accuracy') or 100)>=90 else '#FFC107' if (m.get('accuracy') or 100)>=70 else '#F44336'};">
+                    {m.get('accuracy') or 100}%</td>
                 <td style="padding:3px 8px;color:var(--text-muted);">{m['pp']} PP</td>
             </tr>"""
             for m in opp_moves
@@ -499,6 +545,7 @@ def render():
                     <th style="padding:4px 10px;text-align:left;">Move</th>
                     <th style="padding:4px 8px;text-align:left;">Type</th>
                     <th style="padding:4px 8px;text-align:left;">Power</th>
+                    <th style="padding:4px 8px;text-align:left;">Acc</th>
                     <th style="padding:4px 8px;text-align:left;">PP</th>
                 </tr></thead>
                 <tbody>{move_rows}</tbody>
@@ -512,7 +559,8 @@ def render():
     moves = st.session_state.my_moves or []
     for i, move in enumerate(moves):
         with move_cols[i % 2]:
-            label = f"{move['name']} ({move['type'].upper()}, {move['power']} pwr)"
+            acc   = move.get('accuracy') or 100
+            label = f"{move['name']} ({move['type'].upper()}, {move['power']} pwr, {acc}% acc)"
             if st.button(label, key=f"move_{i}", use_container_width=True):
                 _player_attack(move)
                 st.rerun()
