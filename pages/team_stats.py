@@ -202,18 +202,23 @@ def _move_selector(trainer: str, pokemon_id: int, pokemon_name: str, current_mov
             name = move_options.get(label, "")
             move = next((m for m in all_moves if m["name"] == name), None)
             if move:
-                tc = TYPE_COLORS.get(move["type"], "#888")
-                preview_html += f"""
-                <div style="display:flex;align-items:center;gap:8px;padding:3px 0;
-                    border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <span class="type-badge" style="background:{tc};font-size:0.6rem;min-width:60px;text-align:center;">
-                        {move['type']}</span>
-                    <span style="font-weight:600;font-size:0.85rem;flex:1;">{move['name']}</span>
-                    <span style="font-size:0.75rem;color:#aaa;">{move['power'] or '—'} pwr</span>
-                    <span style="font-size:0.75rem;color:{'#4CAF50' if move['accuracy']>=90 else '#FFC107' if move['accuracy']>=70 else '#F44336'};">
-                        {move['accuracy']}%</span>
-                    <span style="font-size:0.75rem;color:var(--text-muted);">{move['pp']} PP</span>
-                </div>"""
+                tc       = TYPE_COLORS.get(move["type"], "#888")
+                pwr      = move['power'] or '—'
+                acc      = move['accuracy']
+                acc_col  = '#4CAF50' if acc >= 90 else '#FFC107' if acc >= 70 else '#F44336'
+                pp       = move['pp']
+                mtype    = move['type']
+                mname    = move['name']
+                preview_html += (
+                    f'<div style="display:flex;align-items:center;gap:8px;padding:3px 0;'
+                    f'border-bottom:1px solid rgba(255,255,255,0.05);">'
+                    f'<span class="type-badge" style="background:{tc};font-size:0.6rem;min-width:60px;text-align:center;">{mtype}</span>'
+                    f'<span style="font-weight:600;font-size:0.85rem;flex:1;">{mname}</span>'
+                    f'<span style="font-size:0.75rem;color:#aaa;">{pwr} pwr</span>'
+                    f'<span style="font-size:0.75rem;color:{acc_col};">{acc}%</span>'
+                    f'<span style="font-size:0.75rem;color:var(--text-muted);">{pp} PP</span>'
+                    f'</div>'
+                )
         st.markdown(f"""
         <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:0.6rem 0.8rem;margin:0.5rem 0;">
             <div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;">
