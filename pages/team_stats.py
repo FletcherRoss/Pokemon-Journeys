@@ -146,16 +146,21 @@ def _move_selector(pokemon_id: int, pokemon_name: str, current_moves: list[str],
         st.markdown("</div>", unsafe_allow_html=True)
         return
 
-    # Build display options: "Move Name (TYPE, 80 pwr, 100% acc)"
+    # Build display options keyed by canonical name
     move_options = {
         f"{m['name']} [{m['type'].upper()}] {m['power'] or '—'} pwr · {m['accuracy']}% acc · {m['pp']} PP"
         : m['name']
         for m in all_moves
     }
 
-    # Map current selection back to display labels
+    # name → label using full unfiltered dict; normalise both sides to lower for matching
     name_to_label = {v: k for k, v in move_options.items()}
-    current_labels = [name_to_label[n] for n in current_moves if n in name_to_label]
+    name_to_label_lower = {v.lower(): k for k, v in move_options.items()}
+    def _find_label(move_name: str) -> str | None:
+        if move_name in name_to_label:
+            return name_to_label[move_name]
+        return name_to_label_lower.get(move_name.lower())
+    current_labels = [_find_label(n) for n in current_moves if _find_label(n)]
 
     # Type filter
     all_types = sorted({m["type"] for m in all_moves})
@@ -217,7 +222,7 @@ def _move_selector(pokemon_id: int, pokemon_name: str, current_moves: list[str],
     col_save, col_clear = st.columns(2)
     with col_save:
         if st.button("💾 Save moveset", key=f"{key_prefix}_save", use_container_width=True):
-            final_names = [name_to_label[l] for l in full_selection if l in name_to_label]
+            final_names = [move_options[l] for l in full_selection if l in move_options]
             save_fn(final_names)
             st.toast(f"✅ Moveset saved for {pokemon_name}!", icon="✅")
             st.rerun()
