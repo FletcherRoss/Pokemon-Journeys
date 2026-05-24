@@ -10,6 +10,7 @@ from utils.csv_manager import load_teams, save_teams, update_trainer
 from utils.captures_manager import (
     load_captures, save_captures, init_captures_csv,
     level_up_captured, check_and_evolve_captured, level_up_and_check_evolve,
+    get_active_captures, set_capture_active, MAX_ACTIVE,
 )
 from utils.pokemon_api import (
     get_evolution, fetch_pokemon, type_badge_html, fetch_all_learnable_moves
@@ -259,6 +260,143 @@ def _move_selector(trainer: str, pokemon_id: int, pokemon_name: str, current_mov
     st.markdown("</div>", unsafe_allow_html=True)
 
 
+# ── Team management card ─────────────────────────────────────────────────────
+
+def _team_management_card(trainer: str, teams_df: pd.DataFrame, captures_df: pd.DataFrame):
+    color  = TRAINER_COLORS.get(trainer, "#888")
+    emoji  = {"Addy":"🌸","Oakley":"⚡","Raelynn":"🔥"}.get(trainer,"🎮")
+
+    # ── Starter (always active, can't be removed) ─────────────────────────────
+    row = teams_df[teams_df["trainer"] == trainer]
+    starter_id   = _safe_int(row.iloc[0].get("starter_id", 0)) if len(row) else 0
+    starter_name = str(row.iloc[0].get("starter", "")).strip() if len(row) else ""
+    starter_lv   = _safe_int(row.iloc[0].get("level", 5), 5) if len(row) else 5
+
+    # Get all captures for this trainer
+    trainer_caps = captures_df[captures_df["trainer"] == trainer].copy()
+    if "active" not in trainer_caps.columns:
+        trainer_caps["active"] = 1
+
+    active_caps   = trainer_caps[trainer_caps["active"] == 1]
+    inactive_caps = trainer_caps[trainer_caps["active"] != 1]
+    total_active  = len(active_caps)
+
+    # ── Team summary banner ───────────────────────────────────────────────────
+    slots_used = 1 + total_active  # starter + active captures
+    slots_total = 1 + MAX_ACTIVE
+    bar_pct = int((slots_used / slots_total) * 100)
+    bar_col = "#4CAF50" if slots_used < slots_total else "#FFCB05"
+
+    team_label = f"{emoji} {trainer}'s Active Team"
+    st.markdown(
+        f'<div style="background:rgba(0,0,0,0.25);border:1px solid {color};'
+        f'border-radius:12px;padding:0.8rem 1rem;margin-bottom:0.8rem;">'
+        f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+        f'<span style="font-weight:700;color:{color};">{team_label}</span>'
+        f'<span style="font-size:0.85rem;color:var(--text-muted);">{slots_used}/{slots_total} slots</span>'
+        f'</div>'
+        f'<div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:{bar_pct}%;background:{bar_col};"></div></div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
+
+    # ── Active roster display (starter + active captures) ─────────────────────
+    st.markdown("**Active roster:**")
+    active_entries = []
+
+    # Starter slot (locked)
+    if starter_id > 0:
+        sprite = f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{starter_id}.png"
+        active_entries.append(("starter", None, starter_name, sprite, starter_lv, True))
+
+    # Active captures
+    for idx, cap in active_caps.iterrows():
+        pid    = _safe_int(cap["pokemon_id"])
+        lv     = _safe_int(cap.get("current_level") or cap.get("level_caught"), 5)
+        sprite = f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{pid}.png"
+        active_entries.append(("capture", idx, cap["pokemon_name"], sprite, lv, False))
+
+    # Empty slots
+    empty_slots = slots_total - len(active_entries)
+
+    cols_per_row = 3
+    all_slots = active_entries + [("empty", None, f"Empty slot", "", 0, False)] * empty_slots
+
+    for row_start in range(0, len(all_slots), cols_per_row):
+        chunk = all_slots[row_start:row_start + cols_per_row]
+        cols  = st.columns(cols_per_row)
+        for col, (kind, idx, name, sprite, lv, locked) in zip(cols, chunk):
+            with col:
+                if kind == "empty":
+                    st.markdown(
+                        '<div style="border:2px dashed #333;border-radius:12px;padding:0.8rem;'
+                        'text-align:center;min-height:80px;display:flex;align-items:center;'
+                        'justify-content:center;color:#555;font-size:0.75rem;">Empty slot</div>',
+                        unsafe_allow_html=True
+                    )
+                else:
+                    lock_badge = ' 🔒' if locked else ''
+                    st.markdown(
+                        f'<div style="background:linear-gradient(145deg,#1e3a1e,#0f2a0f);'
+                        f'border:2px solid {color};border-radius:12px;padding:0.7rem;'
+                        f'text-align:center;">'
+                        f'<img src="{sprite}" width="55" style="image-rendering:pixelated"/>'
+                        f'<div style="font-size:0.72rem;font-weight:700;margin:3px 0;">{name}{lock_badge}</div>'
+                        f'<div style="font-size:0.62rem;color:var(--text-muted);">Lv.{lv}</div>'
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
+                    if not locked and kind == "capture":
+                        if st.button("❌ Deactivate", key=f"deact_{trainer}_{idx}",
+                                     use_container_width=True):
+                            ok, msg = set_capture_active(idx, False)
+                            if ok:
+                                st.toast(f"{name} moved to bench.", icon="📦")
+                            else:
+                                st.error(msg)
+                            st.rerun()
+
+    # ── Bench (inactive captures) ─────────────────────────────────────────────
+    if len(inactive_caps) > 0:
+        st.markdown("**Bench (inactive):**")
+        for row_start in range(0, len(inactive_caps), cols_per_row):
+            chunk = list(inactive_caps.iloc[row_start:row_start + cols_per_row].iterrows())
+            cols  = st.columns(cols_per_row)
+            for col, (idx, cap) in zip(cols, chunk):
+                pid    = _safe_int(cap["pokemon_id"])
+                lv     = _safe_int(cap.get("current_level") or cap.get("level_caught"), 5)
+                sprite = f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{pid}.png"
+                name   = cap["pokemon_name"]
+                with col:
+                    st.markdown(
+                        f'<div style="background:linear-gradient(145deg,#1a1a2e,#0f0f1e);'
+                        f'border:2px solid #333;border-radius:12px;padding:0.7rem;'
+                        f'text-align:center;opacity:0.7;">'
+                        f'<img src="{sprite}" width="55" style="image-rendering:pixelated"/>'
+                        f'<div style="font-size:0.72rem;font-weight:700;margin:3px 0;">{name}</div>'
+                        f'<div style="font-size:0.62rem;color:var(--text-muted);">Lv.{lv} — Benched</div>'
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
+                    disabled = total_active >= MAX_ACTIVE
+                    help_txt = f"Bench is full ({MAX_ACTIVE} active)" if disabled else f"Activate {name}"
+                    if st.button("✅ Activate", key=f"act_{trainer}_{idx}",
+                                 use_container_width=True, disabled=disabled,
+                                 help=help_txt):
+                        ok, msg = set_capture_active(idx, True)
+                        if ok:
+                            st.toast(f"{name} added to active team!", icon="✅")
+                        else:
+                            st.error(msg)
+                        st.rerun()
+    elif len(inactive_caps) == 0 and len(trainer_caps) > 0:
+        st.markdown("<small style='color:var(--text-muted)'>All caught Pokémon are active.</small>",
+                    unsafe_allow_html=True)
+    else:
+        st.markdown("<small style='color:var(--text-muted)'>No Pokémon caught yet.</small>",
+                    unsafe_allow_html=True)
+
+
 # ── Starter card ──────────────────────────────────────────────────────────────
 
 def _starter_levelup_card(trainer: str, teams_df: pd.DataFrame):
@@ -477,6 +615,21 @@ def render():
                 <small style="color:#a0a8c0;">Gym Badges:</small><br>{badge_html}
             </div>
         </div>""", unsafe_allow_html=True)
+
+    # ── Team management ──────────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("### 🎒 Active Team Management")
+    st.markdown(
+        f"<small style='color:var(--text-muted)'>Each trainer can have <b>1 starter + {MAX_ACTIVE} captured Pokémon</b> "
+        f"active (6 total). Swap which caught Pokémon are in your active roster here.</small>",
+        unsafe_allow_html=True,
+    )
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    team_tabs = st.tabs(["🌸 Addy", "⚡ Oakley", "🔥 Raelynn"])
+    for tab, trainer in zip(team_tabs, ["Addy", "Oakley", "Raelynn"]):
+        with tab:
+            _team_management_card(trainer, teams_df, captures_df)
 
     # ── Level-up + move selection ─────────────────────────────────────────────
     st.markdown("---")
