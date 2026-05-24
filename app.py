@@ -250,6 +250,7 @@ with st.sidebar:
         ("🏟️", "Gym Battle"),
         ("📊", "Team Stats"),
         ("🤝", "Trainer Battle"),
+        ("🎲", "Random Battle"),
     ]
     if "nav_page" not in st.session_state:
         st.session_state.nav_page = "🏠 Home"
@@ -287,4 +288,7 @@ elif page == "📊 Team Stats":
     render()
 elif page == "🤝 Trainer Battle":
     from pages.trainer_battle import render
+    render()
+elif page == "🎲 Random Battle":
+    from pages.random_battle import render
     render()
