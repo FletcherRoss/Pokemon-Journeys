@@ -119,6 +119,46 @@ def fetch_moves(pokemon_id: int) -> list[dict]:
         ]
 
 
+@st.cache_data(ttl=3600)
+def fetch_all_learnable_moves(pokemon_id: int) -> list[dict]:
+    """Fetch every move a pokemon can learn (level-up, TM, egg, tutor) with stats.
+    Returns list of {name, power, type, accuracy, pp, learn_method}.
+    """
+    try:
+        r = requests.get(f"{BASE_URL}/pokemon/{pokemon_id}", timeout=10)
+        r.raise_for_status()
+        moves_raw = r.json()["moves"]
+        results = []
+        seen = set()
+        for m in moves_raw:
+            move_name = m["move"]["name"].replace("-", " ").title()
+            if move_name in seen:
+                continue
+            seen.add(move_name)
+            methods = list({vd["move_learn_method"]["name"]
+                            for vd in m["version_group_details"]})
+            method_label = "/".join(sorted(methods)[:2])  # keep it short
+            move_r = requests.get(m["move"]["url"], timeout=8)
+            if move_r.ok:
+                md = move_r.json()
+                results.append({
+                    "name":         move_name,
+                    "power":        md.get("power") or 0,
+                    "type":         md.get("type", {}).get("name", "normal"),
+                    "accuracy":     md.get("accuracy") or 100,
+                    "pp":           md.get("pp", 10),
+                    "learn_method": method_label,
+                })
+            else:
+                results.append({
+                    "name": move_name, "power": 0, "type": "normal",
+                    "accuracy": 100, "pp": 10, "learn_method": "level-up",
+                })
+        return sorted(results, key=lambda x: x["name"])
+    except Exception:
+        return []
+
+
 def get_random_starters(n: int = 3) -> list[dict]:
     """Pick n random starters (no duplicates)."""
     chosen_ids = random.sample(ALL_STARTERS, n)
