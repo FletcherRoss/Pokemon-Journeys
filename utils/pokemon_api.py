@@ -101,20 +101,21 @@ def fetch_moves(pokemon_id: int) -> list[dict]:
             if move_r.ok:
                 md = move_r.json()
                 moves.append({
-                    "name": move_name,
-                    "power": md.get("power") or 40,
-                    "type": md.get("type", {}).get("name", "normal"),
-                    "pp": md.get("pp", 10),
+                    "name":     move_name,
+                    "power":    md.get("power") or 40,
+                    "type":     md.get("type", {}).get("name", "normal"),
+                    "pp":       md.get("pp", 10),
+                    "accuracy": md.get("accuracy") or 100,
                 })
             else:
-                moves.append({"name": move_name, "power": 40, "type": "normal", "pp": 10})
+                moves.append({"name": move_name, "power": 40, "type": "normal", "pp": 10, "accuracy": 100})
         return moves
     except Exception:
         return [
-            {"name": "Tackle", "power": 40, "type": "normal", "pp": 35},
-            {"name": "Scratch", "power": 40, "type": "normal", "pp": 35},
-            {"name": "Growl",   "power": 0,  "type": "normal", "pp": 40},
-            {"name": "Leer",    "power": 0,  "type": "normal", "pp": 30},
+            {"name": "Tackle",  "power": 40, "type": "normal", "pp": 35, "accuracy": 100},
+            {"name": "Scratch", "power": 40, "type": "normal", "pp": 35, "accuracy": 100},
+            {"name": "Growl",   "power": 0,  "type": "normal", "pp": 40, "accuracy": 100},
+            {"name": "Leer",    "power": 0,  "type": "normal", "pp": 30, "accuracy": 100},
         ]
 
 
