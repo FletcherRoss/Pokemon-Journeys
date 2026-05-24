@@ -20,7 +20,7 @@ BRANCH      = "main"
 API_BASE    = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{CSV_PATH}"
 LOCAL_CSV   = os.path.join(os.path.dirname(__file__), "..", "data", "captures.csv")
 
-COLUMNS = ["trainer", "pokemon_name", "pokemon_id", "types", "level_caught", "current_level", "caught_at", "selected_moves"]
+COLUMNS = ["trainer", "pokemon_name", "pokemon_id", "types", "level_caught", "current_level", "caught_at", "selected_moves", "active"]
 
 
 def _github_token():
@@ -111,6 +111,12 @@ def save_captures(df: pd.DataFrame):
 def add_capture(trainer: str, pokemon: dict, level_caught: int) -> pd.DataFrame:
     """Append a new capture row and save. Returns updated df."""
     df = load_captures()
+    # Auto-activate if trainer has fewer than 5 active captures
+    existing    = load_captures()
+    trainer_cap = existing[existing["trainer"] == trainer] if len(existing) else existing
+    active_count = int((trainer_cap["active"] == 1).sum()) if "active" in trainer_cap.columns else 0
+    is_active   = 1 if active_count < 5 else 0
+
     new_row = {
         "trainer":        trainer,
         "pokemon_name":   pokemon["name"],
@@ -120,6 +126,7 @@ def add_capture(trainer: str, pokemon: dict, level_caught: int) -> pd.DataFrame:
         "current_level":  level_caught,
         "caught_at":      datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
         "selected_moves": "",
+        "active":         is_active,
     }
     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     save_captures(df)
@@ -174,6 +181,48 @@ def level_up_and_check_evolve(capture_index: int) -> tuple[pd.DataFrame, dict | 
     df      = level_up_captured(capture_index)
     evolved = check_and_evolve_captured(capture_index)
     return df, evolved
+
+
+MAX_ACTIVE = 5  # max caught pokemon active at once (+ 1 starter = 6 total)
+
+
+def get_active_captures(trainer: str) -> pd.DataFrame:
+    """Return only active captures for a trainer (active == 1)."""
+    df = load_captures()
+    mask = (df["trainer"] == trainer)
+    trainer_df = df[mask].copy()
+    if "active" not in trainer_df.columns:
+        trainer_df["active"] = 1
+    return trainer_df[trainer_df["active"] == 1].reset_index(drop=True)
+
+
+def set_capture_active(capture_index: int, active: bool) -> tuple[bool, str]:
+    """
+    Toggle active status for a capture row.
+    Returns (success, message).
+    Enforces MAX_ACTIVE limit when activating.
+    """
+    df = load_captures()
+    df = df.astype(object)
+    if "active" not in df.columns:
+        df["active"] = 1
+
+    if capture_index not in df.index:
+        return False, "Pokémon not found."
+
+    trainer = df.at[capture_index, "trainer"]
+    trainer_mask = df["trainer"] == trainer
+
+    if active:
+        current_active = int((df[trainer_mask]["active"] == 1).sum())
+        if current_active >= MAX_ACTIVE:
+            return False, f"Already at {MAX_ACTIVE} active Pokémon. Deactivate one first."
+        df.at[capture_index, "active"] = 1
+    else:
+        df.at[capture_index, "active"] = 0
+
+    save_captures(df)
+    return True, ""
 
 
 def get_trainer_captures(trainer: str) -> pd.DataFrame:
