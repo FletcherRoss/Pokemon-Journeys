@@ -274,8 +274,16 @@ def _team_management_card(trainer: str, teams_df: pd.DataFrame, captures_df: pd.
 
     # Get all captures for this trainer
     trainer_caps = captures_df[captures_df["trainer"] == trainer].copy()
-    if "active" not in trainer_caps.columns:
+    if trainer_caps.empty:
+        trainer_caps["active"] = pd.Series(dtype=int)
+    elif "active" not in trainer_caps.columns:
         trainer_caps["active"] = 1
+    else:
+        # Normalise to int — CSV may load as float or string
+        def _ai(v):
+            try: return int(float(v))
+            except: return 1
+        trainer_caps["active"] = trainer_caps["active"].apply(_ai)
 
     active_caps   = trainer_caps[trainer_caps["active"] == 1]
     inactive_caps = trainer_caps[trainer_caps["active"] != 1]
@@ -554,14 +562,32 @@ def render():
     teams_df    = load_teams()
     captures_df = load_captures()
 
-    # Backfill columns
-    for col, default in [("current_level", None), ("selected_moves", "")]:
+    # Backfill captures columns robustly
+    for col, default in [("current_level", None), ("selected_moves", ""), ("active", 1)]:
         if col not in captures_df.columns:
             captures_df[col] = default
-    captures_df["current_level"] = captures_df.apply(
-        lambda r: r["level_caught"] if str(r.get("current_level", "")).strip() in ("", "nan")
-        else r["current_level"], axis=1
-    )
+
+    # Fix current_level empty/nan values
+    if not captures_df.empty:
+        captures_df["current_level"] = captures_df.apply(
+            lambda r: r["level_caught"] if str(r.get("current_level", "")).strip() in ("", "nan")
+            else r["current_level"], axis=1
+        )
+
+    # Normalise active to int (may be stored as string "1"/"0" from CSV)
+    def _to_active_int(v):
+        try:
+            return int(float(v))
+        except (ValueError, TypeError):
+            return 1  # default active if unparseable
+    if not captures_df.empty:
+        captures_df["active"] = captures_df["active"].apply(_to_active_int)
+
+    # Backfill teams selected_moves column if missing
+    if "selected_moves" not in teams_df.columns:
+        teams_df["selected_moves"] = ""
+    if "level" not in teams_df.columns:
+        teams_df["level"] = 5
 
     if teams_df.empty:
         st.info("No journey data yet. Head to Home and choose a trainer!")
@@ -627,9 +653,9 @@ def render():
     st.markdown("<br>", unsafe_allow_html=True)
 
     team_tabs = st.tabs(["🌸 Addy", "⚡ Oakley", "🔥 Raelynn"])
-    for tab, trainer in zip(team_tabs, ["Addy", "Oakley", "Raelynn"]):
+    for tab, tab_trainer in zip(team_tabs, ["Addy", "Oakley", "Raelynn"]):
         with tab:
-            _team_management_card(trainer, teams_df, captures_df)
+            _team_management_card(tab_trainer, teams_df, captures_df)
 
     # ── Level-up + move selection ─────────────────────────────────────────────
     st.markdown("---")
@@ -643,13 +669,13 @@ def render():
     st.markdown("<br>", unsafe_allow_html=True)
 
     trainer_tabs = st.tabs(["🌸 Addy", "⚡ Oakley", "🔥 Raelynn"])
-    for tab, trainer in zip(trainer_tabs, ["Addy", "Oakley", "Raelynn"]):
+    for tab, tab_trainer in zip(trainer_tabs, ["Addy", "Oakley", "Raelynn"]):
         with tab:
             st.markdown("#### Starter")
-            _starter_levelup_card(trainer, teams_df)
+            _starter_levelup_card(tab_trainer, teams_df)
             st.markdown("---")
             st.markdown("#### Captured Pokémon")
-            _captures_levelup_grid(trainer, captures_df)
+            _captures_levelup_grid(tab_trainer, captures_df)
 
     # ── Charts ───────────────────────────────────────────────────────────────
     st.markdown("---")
