@@ -1,1 +1,5 @@
 trainer,pokemon_id,pokemon_name,slot,move_name,move_type,power,accuracy,pp
+Oakley,260,Swampert,1,Blizzard,ice,110,70,5
+Oakley,260,Swampert,2,Body Slam,normal,85,100,15
+Oakley,260,Swampert,3,Brick Break,fighting,75,100,15
+Oakley,260,Swampert,4,Bulk Up,fighting,0,100,20
