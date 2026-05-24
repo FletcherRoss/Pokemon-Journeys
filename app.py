@@ -157,6 +157,64 @@ h3, h4 { font-family: 'VT323', monospace; font-size: 1.6rem; letter-spacing: 1px
                border:2px solid var(--poke-red); border-radius:12px; }
 
 @keyframes pulse { 0%,100%{ box-shadow:0 0 10px rgba(255,203,5,0.4); } 50%{ box-shadow:0 0 25px rgba(255,203,5,0.8); } }
+
+/* Hide underlying button text for nav — label shown in custom HTML above */
+div[data-testid="stSidebar"] div[data-testid="stButton"] > button {
+    font-size: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: -8px 0 0 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    opacity: 0 !important;
+    position: absolute !important;
+    width: 100% !important;
+}
+
+/* Sidebar nav buttons */
+div[data-testid="stSidebar"] .nav-btn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 4px;
+}
+div[data-testid="stSidebar"] .nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: linear-gradient(145deg, #1e2a4a, #0f1a35);
+    border: 2px solid var(--poke-blue);
+    border-radius: 10px;
+    padding: 14px 8px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-main);
+    transition: all 0.2s ease;
+    line-height: 1.3;
+    min-height: 72px;
+    text-decoration: none;
+}
+div[data-testid="stSidebar"] .nav-btn:hover {
+    border-color: var(--poke-yellow);
+    box-shadow: 0 0 12px rgba(255,203,5,0.3);
+    transform: translateY(-2px);
+}
+div[data-testid="stSidebar"] .nav-btn.active {
+    border-color: var(--poke-yellow);
+    background: linear-gradient(145deg, #2a3a1a, #1a2a0f);
+    box-shadow: 0 0 16px rgba(255,203,5,0.45);
+    color: var(--poke-yellow);
+}
+div[data-testid="stSidebar"] .nav-btn .nav-icon {
+    font-size: 1.4rem;
+    line-height: 1;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -185,8 +243,33 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("### 🗺 Navigation")
-    page = st.radio("Go to:", ["🏠 Home", "⚔️ Wild Battle", "🏟️ Gym Battle", "📊 Team Stats"],
-                    label_visibility="collapsed")
+
+    PAGES = [
+        ("🏠", "Home"),
+        ("⚔️", "Wild Battle"),
+        ("🏟️", "Gym Battle"),
+        ("📊", "Team Stats"),
+    ]
+    if "nav_page" not in st.session_state:
+        st.session_state.nav_page = "🏠 Home"
+
+    # 2x2 grid of square nav buttons
+    col1, col2 = st.columns(2)
+    for i, (icon, label) in enumerate(PAGES):
+        full = f"{icon} {label}"
+        is_active = st.session_state.nav_page == full
+        css = "nav-btn active" if is_active else "nav-btn"
+        with (col1 if i % 2 == 0 else col2):
+            st.markdown(
+                f'<div class="{css}"><div class="nav-icon">{icon}</div>{label}</div>',
+                unsafe_allow_html=True
+            )
+            if st.button(label, key=f"nav_{label}", use_container_width=True,
+                         help=f"Go to {label}"):
+                st.session_state.nav_page = full
+                st.rerun()
+
+    page = st.session_state.nav_page
 
 # ── Page routing ──────────────────────────────────────────────────────────────
 if page == "🏠 Home":
