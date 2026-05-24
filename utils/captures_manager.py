@@ -136,6 +136,45 @@ def level_up_captured(capture_index: int, amount: int = 1) -> pd.DataFrame:
     return df
 
 
+def check_and_evolve_captured(capture_index: int) -> dict | None:
+    """
+    Check if the captured pokemon at capture_index can evolve.
+    If so, updates the row in captures.csv and returns the new evolved pokemon dict.
+    Returns None if no evolution available.
+    """
+    import sys, os
+    from pathlib import Path
+    ROOT = Path(__file__).resolve().parent.parent
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from utils.pokemon_api import get_evolution, fetch_pokemon
+
+    df = load_captures()
+    df = df.astype(object)
+    if capture_index not in df.index:
+        return None
+
+    row    = df.loc[capture_index]
+    poke_id = int(float(row["pokemon_id"]))
+    evolved = get_evolution(poke_id)
+    if not evolved:
+        return None
+
+    # Update the row with the evolved pokemon's data
+    df.at[capture_index, "pokemon_name"] = evolved["name"]
+    df.at[capture_index, "pokemon_id"]   = evolved["id"]
+    df.at[capture_index, "types"]        = "/".join(evolved.get("types", ["normal"]))
+    save_captures(df)
+    return evolved
+
+
+def level_up_and_check_evolve(capture_index: int) -> tuple[pd.DataFrame, dict | None]:
+    """Level up a captured pokemon and check for evolution. Returns (df, evolved_pokemon_or_None)."""
+    df      = level_up_captured(capture_index)
+    evolved = check_and_evolve_captured(capture_index)
+    return df, evolved
+
+
 def get_trainer_captures(trainer: str) -> pd.DataFrame:
     df = load_captures()
     return df[df["trainer"] == trainer].reset_index(drop=True)
