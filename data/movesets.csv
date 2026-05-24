@@ -1,8 +1,4 @@
 trainer,pokemon_id,pokemon_name,slot,move_name,move_type,power,accuracy,pp
-Oakley,260,Swampert,1,Blizzard,ice,110,70,5
-Oakley,260,Swampert,2,Body Slam,normal,85,100,15
-Oakley,260,Swampert,3,Brick Break,fighting,75,100,15
-Oakley,260,Swampert,4,Bulk Up,fighting,0,100,20
 Raelynn,257,Blaziken,1,Blaze Kick,fire,85,90,10
 Raelynn,257,Blaziken,2,Double Team,normal,0,100,15
 Raelynn,257,Blaziken,3,Dual Chop,dragon,40,90,15
@@ -27,3 +23,7 @@ Raelynn,169,Crobat,1,Aerial Ace,flying,60,100,20
 Raelynn,169,Crobat,2,Shadow Ball,ghost,80,100,15
 Raelynn,169,Crobat,3,Sludge Bomb,poison,90,100,10
 Raelynn,169,Crobat,4,Venoshock,poison,65,100,10
+Oakley,260,Swampert,1,Hydro Cannon,water,150,90,5
+Oakley,260,Swampert,2,Waterfall,water,80,100,15
+Oakley,260,Swampert,3,Earthquake,ground,100,100,10
+Oakley,260,Swampert,4,Hyper Beam,normal,150,90,5
