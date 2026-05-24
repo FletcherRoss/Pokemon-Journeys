@@ -1,4 +1,4 @@
-trainer,pokemon_name,pokemon_id,types,level_caught,current_level,caught_at,selected_moves,active_captures
+trainer,pokemon_name,pokemon_id,types,level_caught,current_level,caught_at,selected_moves,active
 Oakley,Jumpluff,189,grass/flying,5,16,2026-05-23 16:30,,
 Raelynn,Sudowoodo,185,rock,6,16,2026-05-23 16:33,,
 Addy,Rhyperior,464,ground/rock,5,16,2026-05-23 22:10,,
