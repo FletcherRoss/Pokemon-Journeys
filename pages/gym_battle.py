@@ -244,12 +244,14 @@ def _render_team_picker(trainer: str):
     st.markdown("### 🎒 Your Team — Pick 2")
 
     roster = _build_roster(trainer)
-    if len(roster) < 2:
-        st.warning("You need at least 2 Pokémon (starter + 1 captured) to challenge a gym!")
+    if len(roster) == 0:
+        st.warning("No Pokémon found — go to Home and choose your starter first.")
         if st.button("← Back"):
             _reset_gym_state()
             st.rerun()
         return
+
+    need = min(2, len(roster))
 
     # Multiselect via checkboxes — track in session state
     if "gym_pick_selected" not in st.session_state:
@@ -269,14 +271,16 @@ def _render_team_picker(trainer: str):
             border = "2px solid #FFCB05" if is_sel else "2px solid var(--poke-blue)"
             bg     = "linear-gradient(145deg,#2a3a0f,#1a2a05)" if is_sel else "linear-gradient(145deg,#1e2a4a,#0f1a35)"
             with col:
+                sel_badge = "✅" if is_sel else ""
+                spd = poke.get("speed", "?")
                 st.markdown(
                     f'<div style="background:{bg};border:{border};border-radius:14px;'
                     f'padding:0.7rem;text-align:center;margin-bottom:4px;">'
                     f'<img src="{sprite}" width="65" style="image-rendering:pixelated"/>'
                     f'<div style="font-size:0.75rem;font-weight:700;margin:3px 0;">{poke["name"]}</div>'
                     f'{types_html}'
-                    f'<div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">Lv.{lv} ⚡{poke.get("speed","?")}</div>'
-                    f'{"✅" if is_sel else ""}'
+                    f'<div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">Lv.{lv} ⚡{spd}</div>'
+                    f'<div>{sel_badge}</div>'
                     f'</div>',
                     unsafe_allow_html=True
                 )
@@ -285,7 +289,7 @@ def _render_team_picker(trainer: str):
                         st.session_state.gym_pick_selected = [n for n in selected if n != poke["name"]]
                         st.rerun()
                 else:
-                    disabled = len(selected) >= 2
+                    disabled = len(selected) >= need
                     if st.button("Select", key=f"sel_{poke['id']}", use_container_width=True, disabled=disabled):
                         st.session_state.gym_pick_selected = selected + [poke["name"]]
                         st.rerun()
@@ -301,7 +305,7 @@ def _render_team_picker(trainer: str):
             _reset_gym_state()
             st.rerun()
     with bc2:
-        if st.button("⚔️ Start Battle!", use_container_width=True, disabled=sel_count < 2):
+        if st.button("⚔️ Start Battle!", use_container_width=True, disabled=sel_count < need):
             # Build the chosen team
             chosen = [e for e in roster if e["poke"]["name"] in selected][:2]
             st.session_state.gym_my_team      = [e["poke"]  for e in chosen]
