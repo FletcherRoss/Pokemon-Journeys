@@ -469,12 +469,12 @@ def _phase_cards():
         </div>""", unsafe_allow_html=True)
 
         if st.button("⚔️ Continue to next battle!", use_container_width=True):
-            # Apply immediate effects
             _apply_card(picked, trainers)
             st.session_state.gt_active_modifier = picked["id"]
-            st.session_state.gt_card_phase = False
-            st.session_state.gt_card_pool  = []
+            st.session_state.gt_card_phase  = False
+            st.session_state.gt_card_pool   = []
             st.session_state.gt_picked_card = None
+            st.session_state.gt_phase       = "battle"   # ← must set explicitly
             log.append(f"🃏 Card drawn: {picked['emoji']} {picked['name']} — {picked['desc']}")
             st.session_state.gt_log = log[-40:]
             st.rerun()
