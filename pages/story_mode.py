@@ -5,6 +5,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import streamlit as st
+import streamlit.components.v1 as components
 from utils.csv_manager import load_teams, save_teams, update_trainer
 from utils.captures_manager import init_captures_csv, level_up_team
 from utils.pokemon_api import fetch_pokemon
@@ -204,7 +205,7 @@ def _render_board(positions, current_trainer):
       {sq_svg}
     </svg>
     """
-    st.markdown(svg_body, unsafe_allow_html=True)
+    components.html(svg_body, height=640, scrolling=False)
 
 
 
