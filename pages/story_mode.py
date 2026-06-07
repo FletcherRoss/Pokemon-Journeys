@@ -166,7 +166,7 @@ def _render_board(positions, current_trainer):
 
     sq_svg   = "\n".join(sq_parts)
     svg_body = f"""
-    <svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 680 620"
+    <svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 680 660"
          style="display:block;margin:0 auto;">
       <defs>
         <clipPath id="ball-clip">
@@ -205,7 +205,7 @@ def _render_board(positions, current_trainer):
       {sq_svg}
     </svg>
     """
-    components.html(svg_body, height=640, scrolling=False)
+    components.html(svg_body, height=720, scrolling=False)
 
 
 
