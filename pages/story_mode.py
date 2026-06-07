@@ -220,6 +220,26 @@ def _dice_face(n):
 
 # ── Phases ────────────────────────────────────────────────────────────────────
 
+def _restart_button():
+    """Shows a Restart Story Mode button with an inline confirmation step."""
+    st.markdown("---")
+    if st.session_state.get("sm_confirm_restart"):
+        st.warning("⚠️ Are you sure? This will reset the entire board for all players.")
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("✅ Yes, restart", key="sm_confirm_yes", use_container_width=True):
+                _reset()
+                st.rerun()
+        with c2:
+            if st.button("❌ Cancel", key="sm_confirm_no", use_container_width=True):
+                st.session_state.sm_confirm_restart = False
+                st.rerun()
+    else:
+        if st.button("🔄 Restart Story Mode", key="sm_restart_btn", use_container_width=False):
+            st.session_state.sm_confirm_restart = True
+            st.rerun()
+
+
 def _phase_setup():
     st.markdown("### 🎲 Story Mode — Pokéball Board Game")
     st.markdown("""
@@ -424,6 +444,8 @@ def _phase_roll():
         _trigger_event(trainer, final_pos, sq_label)
         st.rerun()
 
+    _restart_button()
+
 
 def _trigger_event(trainer, square, sq_label):
     """Set up the event for the landing square."""
@@ -596,6 +618,8 @@ def _phase_event():
         st.markdown("#### 📜 Board Log")
         st.markdown(f'<div class="battle-log">{chr(10).join(log[-10:])}</div>',
                     unsafe_allow_html=True)
+
+    _restart_button()
 
 
 def _apply_heal(trainer, half=False, quarter=False):
