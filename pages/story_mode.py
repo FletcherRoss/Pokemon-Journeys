@@ -136,84 +136,52 @@ def _render_board(positions, current_trainer):
     top_squares = "".join(sq_html(i) for i in range(14))
     # Bottom row: squares 14-27 (white pokeball bottom)
     bot_squares = "".join(sq_html(i) for i in range(14, 28))
-    # Center square
-    center_sq = sq_html(CENTER_SQ, is_center=True)
 
-    st.markdown(f"""
-    <style>
-    .board-grid {{
-        display: grid;
-        grid-template-columns: repeat(14, 1fr);
-        gap: 3px;
-        margin-bottom: 4px;
-    }}
-    .board-center {{
-        display: grid;
-        grid-template-columns: 3fr 8fr 3fr;
-        gap: 3px;
-        margin-bottom: 4px;
-    }}
-    .center-sq {{
-        background: linear-gradient(145deg,#3a0a0a,#1a0505);
-        border: 2px solid #E3350D;
-        border-radius: 10px;
-        text-align: center;
-        padding: 8px 4px;
-        box-shadow: 0 0 16px rgba(227,53,13,0.5);
-    }}
-    .divider-line {{
-        background: rgba(255,255,255,0.15);
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.6rem;
-        color: #555;
-    }}
-    </style>
+    # Pre-compute center player dots (avoids generator inside f-string)
+    center_dots = "".join(
+        f'<span style="color:{TRAINER_COLORS.get(t,"#fff")};font-size:0.8rem;">'
+        f'{TRAINER_EMOJI.get(t,"●")}</span>'
+        for t, pos in positions.items() if pos == CENTER_SQ
+    )
 
-    <div style="background:rgba(0,0,0,0.3);border:2px solid #E3350D;border-radius:16px;padding:8px;">
-        <!-- Red top half -->
-        <div style="background:rgba(227,53,13,0.08);border-radius:10px 10px 0 0;padding:4px;margin-bottom:2px;">
-            <div style="font-size:0.55rem;color:#E3350D;text-align:center;margin-bottom:3px;letter-spacing:2px;">
-                ── RED HALF ──
-            </div>
-            <div class="board-grid">{top_squares}</div>
-        </div>
+    board_html = (
+        '<style>'
+        '.board-grid{display:grid;grid-template-columns:repeat(14,1fr);gap:3px;margin-bottom:4px;}'
+        '.board-center{display:grid;grid-template-columns:3fr 8fr 3fr;gap:3px;margin-bottom:4px;}'
+        '.center-sq{background:linear-gradient(145deg,#3a0a0a,#1a0505);border:2px solid #E3350D;'
+        'border-radius:10px;text-align:center;padding:8px 4px;box-shadow:0 0 16px rgba(227,53,13,0.5);}'
+        '.divider-line{background:rgba(255,255,255,0.15);border-radius:4px;display:flex;'
+        'align-items:center;justify-content:center;font-size:0.6rem;color:#555;}'
+        '</style>'
+        '<div style="background:rgba(0,0,0,0.3);border:2px solid #E3350D;border-radius:16px;padding:8px;">'
 
-        <!-- Center band (Pokéball divider + gauntlet) -->
-        <div class="board-center" style="margin:4px 0;">
-            <div class="divider-line" style="background:rgba(227,53,13,0.1);">
-                <span>🔴</span>
-            </div>
-            <div class="center-sq">
-                <div style="font-size:1.6rem">⚔️</div>
-                <div style="font-family:monospace;font-size:0.55rem;color:#E3350D;font-weight:700;margin:3px 0;">
-                    THE GAUNTLET
-                </div>
-                <div style="font-size:0.5rem;color:#aaa;">Land here to enter</div>
-                <div style="margin-top:4px;">
-                    {"".join(
-                        f'<span style="color:{TRAINER_COLORS.get(t,"#fff")};font-size:0.8rem;">'
-                        f'{TRAINER_EMOJI.get(t,"●")}</span>'
-                        for t, pos in positions.items() if pos == CENTER_SQ
-                    )}
-                </div>
-            </div>
-            <div class="divider-line" style="background:rgba(200,200,200,0.05);">
-                <span>⚪</span>
-            </div>
-        </div>
+        # Red top half
+        '<div style="background:rgba(227,53,13,0.08);border-radius:10px 10px 0 0;padding:4px;margin-bottom:2px;">'
+        '<div style="font-size:0.55rem;color:#E3350D;text-align:center;margin-bottom:3px;letter-spacing:2px;">── RED HALF ──</div>'
+        f'<div class="board-grid">{top_squares}</div>'
+        '</div>'
 
-        <!-- White bottom half -->
-        <div style="background:rgba(200,200,200,0.03);border-radius:0 0 10px 10px;padding:4px;margin-top:2px;">
-            <div style="font-size:0.55rem;color:#aaa;text-align:center;margin-bottom:3px;letter-spacing:2px;">
-                ── WHITE HALF ──
-            </div>
-            <div class="board-grid">{bot_squares}</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+        # Center band
+        '<div class="board-center" style="margin:4px 0;">'
+        '<div class="divider-line" style="background:rgba(227,53,13,0.1);"><span>🔴</span></div>'
+        '<div class="center-sq">'
+        '<div style="font-size:1.6rem">⚔️</div>'
+        '<div style="font-family:monospace;font-size:0.55rem;color:#E3350D;font-weight:700;margin:3px 0;">THE GAUNTLET</div>'
+        '<div style="font-size:0.5rem;color:#aaa;">Land here to enter</div>'
+        f'<div style="margin-top:4px;">{center_dots}</div>'
+        '</div>'
+        '<div class="divider-line" style="background:rgba(200,200,200,0.05);"><span>⚪</span></div>'
+        '</div>'
+
+        # White bottom half
+        '<div style="background:rgba(200,200,200,0.03);border-radius:0 0 10px 10px;padding:4px;margin-top:2px;">'
+        '<div style="font-size:0.55rem;color:#aaa;text-align:center;margin-bottom:3px;letter-spacing:2px;">── WHITE HALF ──</div>'
+        f'<div class="board-grid">{bot_squares}</div>'
+        '</div>'
+
+        '</div>'
+    )
+    st.markdown(board_html, unsafe_allow_html=True)
 
 
 # ── Dice renderer ─────────────────────────────────────────────────────────────
