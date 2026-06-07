@@ -135,11 +135,13 @@ def _safe_int(val, default=0):
 
 # ── Pokemon fetchers ──────────────────────────────────────────────────────────
 
-def _fetch_enemy() -> dict:
+def _fetch_enemy(player_count: int = 1) -> dict:
     pid  = random.choice(ALL_NORMAL_IDS)
     poke = fetch_pokemon(pid)
     poke["level"] = random.randint(30, 60)
     poke["moves"] = fetch_moves(pid)
+    # Scale HP by number of players
+    poke["hp"]    = poke["hp"] * max(1, player_count)
     return poke
 
 
@@ -410,7 +412,7 @@ def _phase_setup():
                 st.error(f"{', '.join(missing)} need a starter (go to Home first).")
                 return
 
-            pool = [_fetch_enemy() for _ in range(GAUNTLET_SIZE)]
+            pool = [_fetch_enemy(len(selected)) for _ in range(GAUNTLET_SIZE)]
 
         st.session_state.gt_trainers      = selected
         st.session_state.gt_trainer_poke  = pokes_d
@@ -463,7 +465,7 @@ def _phase_cards():
             border:2px solid {c['color']};border-radius:16px;padding:1.5rem;
             text-align:center;box-shadow:0 0 20px {c['color']}44;margin:1rem 0;">
             <div style="font-size:3rem">{c['emoji']}</div>
-            <div style="font-family:'Press Start 2P',monospace;font-size:0.7rem;
+            <div style="font-family:monospace;font-size:0.7rem;
                 color:{c['color']};margin:0.5rem 0;">{c['name'].upper()}</div>
             <div style="font-size:0.85rem;color:var(--text-muted);">{c['desc']}</div>
         </div>""", unsafe_allow_html=True)
@@ -772,7 +774,7 @@ def _phase_legendary():
     <div style="text-align:center;padding:1.2rem;
         background:linear-gradient(135deg,rgba(112,56,248,0.15),rgba(112,56,248,0.05));
         border:2px solid #7038F8;border-radius:16px;margin-bottom:1rem;">
-        <div style="font-family:'Press Start 2P',monospace;font-size:0.7rem;color:#7038F8;margin-bottom:8px;">
+        <div style="font-family:monospace;font-size:0.7rem;color:#7038F8;margin-bottom:8px;">
             ✨ LEGENDARY POKÉMON APPEARS! ✨
         </div>
         <img src="{sprite}" width="150" style="image-rendering:pixelated;
@@ -893,77 +895,217 @@ def _phase_legendary():
 
 
 def _enter_capture(include_legendary: bool):
-    queue = []
+    """Build the capture queue and available pool, then go to selection screen."""
+    available = []
     if include_legendary and st.session_state.gt_legendary:
         leg = st.session_state.gt_legendary
-        queue.append({"poke": leg, "threshold": LEGENDARY_THRESHOLD, "is_leg": True})
+        available.append({"poke": leg, "threshold": LEGENDARY_THRESHOLD, "is_leg": True})
     for i in st.session_state.gt_defeated:
         ep = st.session_state.gt_enemy_pool[i]
-        queue.append({"poke": ep, "threshold": CAPTURE_THRESHOLD, "is_leg": False})
-    st.session_state.gt_capture_queue   = queue
-    st.session_state.gt_capture_idx     = 0
-    st.session_state.gt_capture_results = {}
-    st.session_state.gt_phase           = "capture"
+        available.append({"poke": ep, "threshold": CAPTURE_THRESHOLD, "is_leg": False})
+
+    # Each trainer gets exactly one attempt — store per-trainer roll state
+    trainers = st.session_state.gt_trainers
+    st.session_state.gt_capture_available = available   # pool to choose from
+    st.session_state.gt_capture_queue     = []          # chosen order (one per trainer)
+    st.session_state.gt_capture_results   = {}
+    st.session_state.gt_capture_trainer_idx = 0         # which trainer is currently picking/rolling
+    # Per-trainer selected pokemon name
+    st.session_state.gt_capture_selections = {t: None for t in trainers}
+    st.session_state.gt_phase = "capture"
 
 
 # ── Phase: capture ────────────────────────────────────────────────────────────
 
 def _phase_capture():
-    trainers = st.session_state.gt_trainers
-    queue    = st.session_state.gt_capture_queue
-    idx      = st.session_state.gt_capture_idx
-    results  = st.session_state.gt_capture_results
+    trainers   = st.session_state.gt_trainers
+    available  = st.session_state.get("gt_capture_available", [])
+    results    = st.session_state.gt_capture_results
+    trainer_idx = st.session_state.get("gt_capture_trainer_idx", 0)
+    selections  = st.session_state.get("gt_capture_selections", {t: None for t in trainers})
 
-    if not queue:
+    if not available:
         st.info("No Pokémon available to capture.")
         if st.button("🏁 Finish"):
             st.session_state.gt_phase = "result"
             st.rerun()
         return
 
-    if idx >= len(queue):
-        # Summary
+    # All trainers done
+    if trainer_idx >= len(trainers):
         caught = [n for n, r in results.items() if r == "caught"]
         st.markdown("### 🎉 Capture Summary")
         if caught:
             st.success(f"Caught: **{', '.join(caught)}**!")
-            for entry in queue:
+            for entry in available:
                 poke = entry["poke"]
                 if results.get(poke["name"]) == "caught":
                     for t in trainers:
                         add_capture(t, poke, poke.get("level", 5))
         else:
             st.info("No Pokémon were caught this run.")
-        st.session_state.gt_phase = "result"
         if st.button("🏁 Finish Gauntlet", use_container_width=True):
+            st.session_state.gt_phase = "result"
             st.rerun()
         return
 
-    entry     = queue[idx]
-    poke      = entry["poke"]
-    threshold = entry["threshold"]
-    is_leg    = entry.get("is_leg", False)
-    cap_key   = f"gt_cap_{idx}"
+    trainer   = trainers[trainer_idx]
+    color     = TRAINER_COLORS.get(trainer, "#888")
+    emoji     = TRAINER_EMOJI.get(trainer, "🎮")
+    cap_key   = f"gt_cap_{trainer}"
+    chosen_name = selections.get(trainer)
 
-    label = "Legendary Capture!" if is_leg else f"Capture {idx+1} of {len(queue)}"
-    st.markdown(f"### ⚾ {label}")
+    st.markdown(f"### ⚾ {emoji} {trainer}'s Capture Attempt ({trainer_idx+1}/{len(trainers)})")
     st.markdown(
-        f"<small style='color:var(--text-muted)'>All trainers share this capture attempt.</small>",
+        f"<small style='color:var(--text-muted)'>Each trainer gets <b>one roll</b>. "
+        f"Choose a Pokémon to attempt to capture.</small>",
         unsafe_allow_html=True
     )
 
-    result = _capture_ui(poke, threshold, cap_key)
+    # ── Step 1: Choose which pokemon to attempt ────────────────────────────────
+    if not chosen_name:
+        st.markdown("#### Which Pokémon do you want to try to catch?")
+        cols_per_row = 3
+        for row_start in range(0, len(available), cols_per_row):
+            chunk = available[row_start:row_start + cols_per_row]
+            cols  = st.columns(cols_per_row)
+            for col, entry in zip(cols, chunk):
+                poke   = entry["poke"]
+                is_leg = entry.get("is_leg", False)
+                thresh = entry["threshold"]
+                sprite = (f"https://raw.githubusercontent.com/PokeAPI/sprites/master"
+                          f"/sprites/pokemon/other/official-artwork/{poke['id']}.png")
+                types_html = " ".join(type_badge_html(t) for t in poke["types"])
+                border = "2px solid #7038F8" if is_leg else "2px solid var(--poke-blue)"
+                leg_tag = '<div style="font-size:0.6rem;color:#7038F8;font-weight:700;">✨ LEGENDARY</div>' if is_leg else ""
+                already_caught = results.get(poke["name"]) == "caught"
+                with col:
+                    caught_tag = '<div style="font-size:0.65rem;color:#4CAF50;">✅ Already caught!</div>' if already_caught else ""
+                    st.markdown(
+                        '<div style="background:linear-gradient(145deg,#1e2a4a,#0f1a35);'
+                        f'border:{border};border-radius:14px;padding:0.8rem;text-align:center;">'
+                        f'{leg_tag}'
+                        f'<img src="{sprite}" width="80" style="image-rendering:pixelated"/>'
+                        f'<div style="font-size:0.78rem;font-weight:700;margin:3px 0;">{poke["name"]}</div>'
+                        f'{types_html}'
+                        f'<div style="font-size:0.62rem;color:var(--text-muted);margin-top:3px;">'
+                        f'Need {thresh}+ to catch</div>'
+                        + caught_tag +
+                        '</div>',
+                        unsafe_allow_html=True
+                    )
+                    if st.button(f"Choose {poke['name']}", key=f"gt_choose_{trainer}_{poke['id']}",
+                                 use_container_width=True):
+                        selections[trainer] = poke["name"]
+                        st.session_state.gt_capture_selections = selections
+                        st.rerun()
 
-    if result in ("caught", "escaped", "skipped"):
-        results[poke["name"]] = result
-        st.session_state.gt_capture_results = results
-        # Clear roll state
-        for k in [f"{cap_key}_roll", f"{cap_key}_result", f"{cap_key}_btn",
-                  f"{cap_key}_irl", f"{cap_key}_skip"]:
-            st.session_state.pop(k, None)
-        if st.button("➡️ Next", key=f"gt_next_{idx}", use_container_width=True):
-            st.session_state.gt_capture_idx = idx + 1
+        st.markdown("---")
+        if st.button("⏭️ Skip my turn", key=f"gt_skip_turn_{trainer}", use_container_width=True):
+            results[trainer + "_turn"] = "skipped"
+            st.session_state.gt_capture_results    = results
+            st.session_state.gt_capture_trainer_idx = trainer_idx + 1
             st.rerun()
+        return
+
+    # ── Step 2: Roll for chosen pokemon ───────────────────────────────────────
+    entry = next((e for e in available if e["poke"]["name"] == chosen_name), None)
+    if not entry:
+        # Invalid selection — reset
+        selections[trainer] = None
+        st.session_state.gt_capture_selections = selections
+        st.rerun()
+        return
+
+    poke      = entry["poke"]
+    threshold = entry["threshold"]
+    roll_res  = st.session_state.get(f"{cap_key}_result")
+    roll_val  = st.session_state.get(f"{cap_key}_roll")
+
+    sprite = (f"https://raw.githubusercontent.com/PokeAPI/sprites/master"
+              f"/sprites/pokemon/other/official-artwork/{poke['id']}.png")
+    types_html = " ".join(type_badge_html(t) for t in poke["types"])
+    is_leg  = entry.get("is_leg", False)
+    bc      = "#7038F8" if is_leg else "#FFCB05"
+    leg_tag = '<div style="font-family:monospace;font-size:0.6rem;color:#7038F8;margin-bottom:6px;">✨ LEGENDARY ✨</div>' if is_leg else ""
+
+    st.markdown(
+        f'<div style="background:linear-gradient(145deg,#1e2a4a,#0f1a35);'
+        f'border:2px solid {bc};border-radius:16px;padding:1.2rem;'
+        f'text-align:center;box-shadow:0 0 18px {bc}44;margin-bottom:1rem;">'
+        f'{leg_tag}'
+        f'<img src="{sprite}" width="110" style="image-rendering:pixelated;margin:4px 0;"/>'
+        f'<div style="font-weight:700;font-size:1rem;">{poke["name"]}</div>'
+        f'<div style="margin:4px 0;">{types_html}</div>'
+        f'<div style="font-size:0.8rem;color:var(--text-muted);margin-top:6px;">'
+        f'Roll d20 — need <b style="color:{bc}">{threshold}+</b> to catch</div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
+
+    if roll_res is None:
+        # Show roll buttons (one chance only)
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            if st.button("🎲 Roll d20!", key=f"{cap_key}_btn", use_container_width=True):
+                roll = random.randint(1, 20)
+                st.session_state[f"{cap_key}_roll"]   = roll
+                st.session_state[f"{cap_key}_result"] = "caught" if roll >= threshold else "escaped"
+                st.rerun()
+        with c2:
+            if st.button("✅ Caught IRL!", key=f"{cap_key}_irl", use_container_width=True):
+                st.session_state[f"{cap_key}_roll"]   = 20
+                st.session_state[f"{cap_key}_result"] = "caught"
+                st.rerun()
+        with c3:
+            if st.button("⏭️ Skip", key=f"{cap_key}_skip", use_container_width=True):
+                st.session_state[f"{cap_key}_result"] = "skipped"
+                st.rerun()
+        # Also allow going back to repick
+        if st.button("← Change selection", key=f"gt_back_{trainer}", use_container_width=False):
+            selections[trainer] = None
+            st.session_state.gt_capture_selections = selections
+            st.rerun()
+        return
+
+    # Result is in — show outcome, then auto-advance to next trainer
+    results[poke["name"]] = roll_res
+    st.session_state.gt_capture_results = results
+
+    if roll_res == "caught":
+        roll_line = f"Rolled <b style='color:#FFCB05'>{roll_val}</b> — success!" if roll_val and roll_val < 20 else "Caught in real life!"
+        st.markdown(
+            f'<div style="background:linear-gradient(145deg,#1a3a1a,#0f2a0f);'
+            f'border:2px solid #4CAF50;border-radius:12px;padding:1rem;text-align:center;">'
+            f'<div style="font-size:1.5rem">🎉</div>'
+            f'<div style="font-family:monospace;font-size:0.6rem;color:#4CAF50;">'
+            f'{poke["name"]} was caught!</div>'
+            f'<div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">{roll_line}</div>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+    elif roll_res == "escaped":
+        st.markdown(
+            f'<div style="background:rgba(227,53,13,0.1);border:2px solid #E3350D;'
+            f'border-radius:12px;padding:1rem;text-align:center;">'
+            f'<div style="font-size:1.5rem">💨</div>'
+            f'<div style="font-size:0.85rem;color:#E3350D;font-weight:700;">{poke["name"]} broke free!</div>'
+            f'<div style="font-size:0.8rem;color:var(--text-muted);">'
+            f'Rolled <b style="color:#FFCB05">{roll_val}</b> — needed {threshold}+</div>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+    else:
+        st.info("Capture skipped.")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    next_label = f"➡️ {trainers[trainer_idx+1]}'s turn" if trainer_idx + 1 < len(trainers) else "➡️ See results"
+    if st.button(next_label, key=f"gt_next_trainer_{trainer}", use_container_width=True):
+        # Clear roll state for this trainer
+        for k in [f"{cap_key}_roll", f"{cap_key}_result"]:
+            st.session_state.pop(k, None)
+        st.session_state.gt_capture_trainer_idx = trainer_idx + 1
+        st.rerun()
 
 
 # ── Phase: result ─────────────────────────────────────────────────────────────
@@ -981,7 +1123,7 @@ def _phase_result():
             border:3px solid #FFCB05;border-radius:20px;margin-bottom:1rem;
             animation:pulse 1.5s infinite;">
             <div style="font-size:3rem">🏆</div>
-            <div style="font-family:'Press Start 2P',monospace;font-size:0.85rem;
+            <div style="font-family:monospace;font-size:0.85rem;
                 color:#FFCB05;text-shadow:0 0 20px rgba(255,203,5,0.8);margin:0.5rem 0;">
                 GAUNTLET CLEARED!
             </div>
