@@ -100,88 +100,112 @@ def _reset():
 # ── Board renderer ────────────────────────────────────────────────────────────
 
 def _render_board(positions, current_trainer):
-    """Render a Pokéball-shaped board using HTML/CSS grid."""
+    """Render a circular Pokéball board using SVG. 28 outer squares + center gauntlet."""
+    import math
 
-    # Build square data
-    def sq_html(idx, is_center=False):
-        if is_center:
-            label, emoji, color, _ = SQUARE_TYPES["gauntlet"]
-        else:
-            label, emoji, color, _ = _sq(idx)
+    cx, cy, r = 340, 310, 265   # center and radius of the ring
 
-        # Find players on this square
-        players_here = [t for t, pos in positions.items() if pos == idx]
-        player_dots  = "".join(
-            f'<span style="color:{TRAINER_COLORS.get(t,"#fff")};font-size:0.7rem;">'
-            f'{TRAINER_EMOJI.get(t,"●")}</span>'
-            for t in players_here
+    # Build per-square data
+    squares = []
+    for i in range(BOARD_SIZE):
+        angle_deg = -90 + (i / BOARD_SIZE) * 360   # start at top, go clockwise
+        angle_rad = math.radians(angle_deg)
+        sx = cx + r * math.cos(angle_rad)
+        sy = cy + r * math.sin(angle_rad)
+        label, emoji, color, _ = _sq(i)
+        players_here = [t for t, pos in positions.items() if pos == i]
+        squares.append({
+            "idx": i, "x": sx, "y": sy,
+            "label": label, "emoji": emoji, "color": color,
+            "players": players_here,
+            "is_active": any(t == current_trainer for t in players_here),
+        })
+
+    center_players = [t for t, pos in positions.items() if pos == CENTER_SQ]
+
+    # Build SVG pieces
+    # -- dividing line (horizontal band across center)
+    divider_top = cy - 14
+    divider_bot = cy + 14
+
+    # -- outer ring squares
+    sq_parts = []
+    for sq in squares:
+        x, y = sq["x"], sq["y"]
+        color = sq["color"]
+        ring_stroke = 2.5 if sq["is_active"] else 0.5
+        ring_opacity = 1.0 if sq["is_active"] else 0.7
+        glow = f'filter:drop-shadow(0 0 4px {color});' if sq["is_active"] else ""
+
+        # player dots HTML
+        player_text = ""
+        for t in sq["players"]:
+            tc = TRAINER_COLORS.get(t, "#fff")
+            te = TRAINER_EMOJI.get(t, "●")
+            player_text += f'<tspan fill="{tc}">{te}</tspan>'
+
+        sq_parts.append(
+            f'<g style="opacity:{ring_opacity};{glow}">'
+            f'<rect x="{x-18}" y="{y-18}" width="36" height="36" rx="5" '
+            f'fill="#1e2a4a" stroke="{color}" stroke-width="{ring_stroke}"/>'
+            f'<text x="{x}" y="{y-3}" text-anchor="middle" '
+            f'font-size="14" dominant-baseline="central">{sq["emoji"]}</text>'
+            f'<text x="{x}" y="{y+11}" text-anchor="middle" '
+            f'fill="#aaa" font-size="7" dominant-baseline="central">{sq["idx"]}</text>'
+            + (f'<text x="{x}" y="{y+8}" text-anchor="middle" font-size="10">{player_text}</text>' if sq["players"] else "")
+            + f'</g>'
         )
-        is_active = any(t == current_trainer for t in players_here)
-        ring = f"box-shadow:0 0 8px {color};" if is_active else ""
 
-        num = f'<span style="font-size:0.5rem;color:#666;position:absolute;top:2px;left:3px;">{idx}</span>'
-
-        return (
-            f'<div style="position:relative;background:linear-gradient(145deg,#1e2a4a,#0f1a35);'
-            f'border:1px solid {color};border-radius:6px;padding:3px 2px;'
-            f'text-align:center;font-size:0.7rem;min-height:52px;{ring}">'
-            f'{num}'
-            f'<div style="font-size:1rem;margin-top:4px;">{emoji}</div>'
-            f'<div style="font-size:0.5rem;color:#aaa;line-height:1.1;">{label[:8]}</div>'
-            f'<div style="margin-top:2px;">{player_dots}</div>'
-            f'</div>'
-        )
-
-    # Top row: squares 0-13 (red pokeball top)
-    top_squares = "".join(sq_html(i) for i in range(14))
-    # Bottom row: squares 14-27 (white pokeball bottom)
-    bot_squares = "".join(sq_html(i) for i in range(14, 28))
-
-    # Pre-compute center player dots (avoids generator inside f-string)
-    center_dots = "".join(
-        f'<span style="color:{TRAINER_COLORS.get(t,"#fff")};font-size:0.8rem;">'
-        f'{TRAINER_EMOJI.get(t,"●")}</span>'
-        for t, pos in positions.items() if pos == CENTER_SQ
+    # -- center Gauntlet
+    center_dot_parts = "".join(
+        f'<tspan fill="{TRAINER_COLORS.get(t,"#fff")}">{TRAINER_EMOJI.get(t,"●")}</tspan>'
+        for t in center_players
     )
+    center_player_line = f'<text x="{cx}" y="{cy+20}" text-anchor="middle" font-size="13">{center_dot_parts}</text>' if center_players else ""
 
-    board_html = (
-        '<style>'
-        '.board-grid{display:grid;grid-template-columns:repeat(14,1fr);gap:3px;margin-bottom:4px;}'
-        '.board-center{display:grid;grid-template-columns:3fr 8fr 3fr;gap:3px;margin-bottom:4px;}'
-        '.center-sq{background:linear-gradient(145deg,#3a0a0a,#1a0505);border:2px solid #E3350D;'
-        'border-radius:10px;text-align:center;padding:8px 4px;box-shadow:0 0 16px rgba(227,53,13,0.5);}'
-        '.divider-line{background:rgba(255,255,255,0.15);border-radius:4px;display:flex;'
-        'align-items:center;justify-content:center;font-size:0.6rem;color:#555;}'
-        '</style>'
-        '<div style="background:rgba(0,0,0,0.3);border:2px solid #E3350D;border-radius:16px;padding:8px;">'
+    sq_svg   = "\n".join(sq_parts)
+    svg_body = f"""
+    <svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 680 620"
+         style="display:block;margin:0 auto;">
+      <defs>
+        <clipPath id="ball-clip">
+          <circle cx="{cx}" cy="{cy}" r="{r+20}"/>
+        </clipPath>
+      </defs>
 
-        # Red top half
-        '<div style="background:rgba(227,53,13,0.08);border-radius:10px 10px 0 0;padding:4px;margin-bottom:2px;">'
-        '<div style="font-size:0.55rem;color:#E3350D;text-align:center;margin-bottom:3px;letter-spacing:2px;">── RED HALF ──</div>'
-        f'<div class="board-grid">{top_squares}</div>'
-        '</div>'
+      <!-- Pokéball outer circle -->
+      <circle cx="{cx}" cy="{cy}" r="{r+22}"
+              fill="none" stroke="#E3350D" stroke-width="2" opacity="0.4"/>
 
-        # Center band
-        '<div class="board-center" style="margin:4px 0;">'
-        '<div class="divider-line" style="background:rgba(227,53,13,0.1);"><span>🔴</span></div>'
-        '<div class="center-sq">'
-        '<div style="font-size:1.6rem">⚔️</div>'
-        '<div style="font-family:monospace;font-size:0.55rem;color:#E3350D;font-weight:700;margin:3px 0;">THE GAUNTLET</div>'
-        '<div style="font-size:0.5rem;color:#aaa;">Land here to enter</div>'
-        f'<div style="margin-top:4px;">{center_dots}</div>'
-        '</div>'
-        '<div class="divider-line" style="background:rgba(200,200,200,0.05);"><span>⚪</span></div>'
-        '</div>'
+      <!-- Red half (top) -->
+      <path d="M {cx-r-22} {cy} A {r+22} {r+22} 0 0 1 {cx+r+22} {cy} Z"
+            fill="#E3350D" opacity="0.06"/>
 
-        # White bottom half
-        '<div style="background:rgba(200,200,200,0.03);border-radius:0 0 10px 10px;padding:4px;margin-top:2px;">'
-        '<div style="font-size:0.55rem;color:#aaa;text-align:center;margin-bottom:3px;letter-spacing:2px;">── WHITE HALF ──</div>'
-        f'<div class="board-grid">{bot_squares}</div>'
-        '</div>'
+      <!-- White half (bottom) -->
+      <path d="M {cx-r-22} {cy} A {r+22} {r+22} 0 0 0 {cx+r+22} {cy} Z"
+            fill="#ffffff" opacity="0.03"/>
 
-        '</div>'
-    )
-    st.markdown(board_html, unsafe_allow_html=True)
+      <!-- Dividing band -->
+      <rect x="{cx-r-22}" y="{divider_top}" width="{(r+22)*2}" height="28"
+            fill="#333" opacity="0.5" clip-path="url(#ball-clip)"/>
+
+      <!-- Center Pokéball button -->
+      <circle cx="{cx}" cy="{cy}" r="52"
+              fill="#1a0a0a" stroke="#E3350D" stroke-width="2"/>
+      <circle cx="{cx}" cy="{cy}" r="48"
+              fill="#2a0f0f" stroke="#c0280a" stroke-width="1"/>
+      <text x="{cx}" y="{cy-8}" text-anchor="middle" fill="#E3350D"
+            font-size="20" font-weight="bold">⚔️</text>
+      <text x="{cx}" y="{cy+8}" text-anchor="middle" fill="#E3350D"
+            font-size="8" font-family="monospace" font-weight="bold">GAUNTLET</text>
+      {center_player_line}
+
+      <!-- Board squares around the ring -->
+      {sq_svg}
+    </svg>
+    """
+    st.markdown(svg_body, unsafe_allow_html=True)
+
 
 
 # ── Dice renderer ─────────────────────────────────────────────────────────────
@@ -347,24 +371,28 @@ def _phase_roll():
 
     sq_label, sq_emoji, sq_color, sq_desc = _sq(new_pos if not goes_center else CENTER_SQ)
 
-    st.markdown(f"""
-    <div style="background:rgba(0,0,0,0.25);border:1px solid {color};
-        border-radius:12px;padding:1rem;margin-bottom:0.8rem;">
-        <div style="font-size:1.3rem;text-align:center;">{_dice_face(d1)} + {_dice_face(d2)} = <b>{total}</b></div>
-        <div style="text-align:center;margin-top:6px;font-size:0.85rem;">
-            Square {cur_pos} → <b>Square {new_pos if not goes_center else "CENTER"}</b>
-            {"🆕 LAP " + str(new_laps) + " COMPLETE! 🎉" if new_laps > laps[trainer] else ""}
-        </div>
-        <div style="text-align:center;margin-top:6px;">
-            <span style="background:{sq_color}22;border:1px solid {sq_color};
-                border-radius:8px;padding:3px 10px;font-size:0.85rem;">
-                {sq_emoji} {sq_label}
-            </span>
-        </div>
-        <div style="text-align:center;font-size:0.8rem;color:var(--text-muted);margin-top:4px;">
-            {sq_desc}
-        </div>
-    </div>""", unsafe_allow_html=True)
+    # Pre-compute all dynamic values before HTML assembly
+    dest_label  = "CENTER" if goes_center else str(new_pos)
+    lap_badge   = f"🆕 LAP {new_laps} COMPLETE! 🎉" if new_laps > laps[trainer] else ""
+    d1_face     = _dice_face(d1)
+    d2_face     = _dice_face(d2)
+    sq_bg       = sq_color + "22"
+
+    st.markdown(
+        f'<div style="background:rgba(0,0,0,0.25);border:1px solid {color};'
+        f'border-radius:12px;padding:1rem;margin-bottom:0.8rem;">'
+        f'<div style="font-size:1.3rem;text-align:center;">{d1_face} + {d2_face} = <b>{total}</b></div>'
+        f'<div style="text-align:center;margin-top:6px;font-size:0.85rem;">'
+        f'Square {cur_pos} → <b>Square {dest_label}</b> {lap_badge}</div>'
+        f'<div style="text-align:center;margin-top:6px;">'
+        f'<span style="background:{sq_bg};border:1px solid {sq_color};'
+        f'border-radius:8px;padding:3px 10px;font-size:0.85rem;">'
+        f'{sq_emoji} {sq_label}</span></div>'
+        f'<div style="text-align:center;font-size:0.8rem;color:var(--text-muted);margin-top:4px;">'
+        f'{sq_desc}</div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
 
     if st.button(f"✅ Move to Square {'CENTER' if goes_center else new_pos}",
                  use_container_width=True):
