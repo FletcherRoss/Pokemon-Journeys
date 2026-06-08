@@ -9,7 +9,13 @@ from utils.csv_manager import load_teams, save_teams, update_trainer
 from utils.captures_manager import init_captures_csv, level_up_team
 from utils.story_mode_utils import award_master_ball, get_master_balls, use_master_ball
 
-TRAINERS       = ["Addy", "Oakley", "Raelynn"]
+def _get_trainers():
+    """Always read live from CSV so new players are included."""
+    try:
+        from utils.csv_manager import get_all_trainers
+        return get_all_trainers()
+    except Exception:
+        return ["Addy", "Oakley", "Raelynn"]
 TRAINER_COLORS = {"Addy": "#F06292", "Oakley": "#64B5F6", "Raelynn": "#FFB74D"}
 TRAINER_EMOJI  = {"Addy": "🌸", "Oakley": "⚡", "Raelynn": "🔥"}
 
@@ -109,8 +115,8 @@ def _phase_setup():
         unsafe_allow_html=True
     )
 
-    selected = st.multiselect("Choose players (1-3):", TRAINERS,
-                              default=[TRAINERS[0]], key="sm_player_sel", max_selections=3)
+    selected = st.multiselect("Choose players (1-3):", _get_trainers(),
+                              default=[_get_trainers()[0]], key="sm_player_sel", max_selections=3)
     if not selected:
         st.warning("Select at least 1 player.")
         return
