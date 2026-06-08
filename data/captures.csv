@@ -1,18 +1,18 @@
 trainer,pokemon_name,pokemon_id,types,level_caught,current_level,caught_at,selected_moves,active
 Oakley,Jumpluff,189,grass/flying,5,23,2026-05-23 16:30,,1.0
 Raelynn,Sudowoodo,185,rock,6,23,2026-05-23 16:33,,1.0
-Addy,Rhyperior,464,ground/rock,5,28,2026-05-23 22:10,,1.0
+Addy,Rhyperior,464,ground/rock,5,29,2026-05-23 22:10,,1.0
 Oakley,Dusknoir,477,ghost,6,23,2026-05-23 22:13,,1.0
 Raelynn,Cacturne,332,grass/dark,12,23,2026-05-23 23:19,,1.0
 Oakley,Butterfree,12,bug/flying,13,24,2026-05-23 23:20,,1.0
-Addy,Magmortar,467,fire,10,28,2026-05-23 23:24,,1.0
-Addy,Ambipom,424,normal,13,28,2026-05-24 14:37,,1.0
+Addy,Magmortar,467,fire,10,29,2026-05-23 23:24,,1.0
+Addy,Ambipom,424,normal,13,29,2026-05-24 14:37,,1.0
 Raelynn,Crobat,169,poison/flying,14,23,2026-05-24 14:41,,1.0
 Raelynn,Glalie,362,ice,17,24,2026-05-24 21:27,,1.0
 Oakley,Ludicolo,272,water/grass,17,24,2026-05-25 13:49,,1.0
-Addy,Steelix,208,steel/ground,19,30,2026-05-25 13:53,,1.0
+Addy,Steelix,208,steel/ground,19,31,2026-05-25 13:53,,1.0
 Oakley,Jynx,124,ice/psychic,19,23,2026-05-25 14:21,,1.0
-Addy,Snubbull,209,fairy,21,28,2026-05-30 20:40,,1.0
+Addy,Snubbull,209,fairy,21,29,2026-05-30 20:40,,1.0
 Addy,Machamp,68,fighting,21,21,2026-05-30 20:42,,0.0
 Addy,Lileep,345,rock/grass,44,44,2026-06-07 23:54,,0.0
 Oakley,Lileep,345,rock/grass,44,44,2026-06-07 23:54,,0.0
