@@ -310,6 +310,9 @@ def _record_result(result: str):
         df = update_trainer(df, trainer, wins=wins, losses=losses, level=level)
         save_teams(df)
     if result == "win":
+        # Reset capture state so fresh capture panel shows for this new win
+        st.session_state.capture_result = None
+        st.session_state.d20_roll       = None
         lv_msgs = level_up_team(trainer, amount=1)
         log = st.session_state.get("battle_log", [])
         log.extend(lv_msgs)
@@ -518,7 +521,7 @@ def render():
             log_text = "\n".join(st.session_state.battle_log)
             st.markdown(f'<div class="battle-log">{log_text}</div>', unsafe_allow_html=True)
 
-            if st.session_state.get("capture_result") not in ("skipped",):
+            if st.session_state.get("capture_result") not in ("skipped", "caught", "escaped"):
                 _render_d20_panel()
 
             st.markdown("---")
