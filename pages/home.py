@@ -291,11 +291,6 @@ def render():
     # ── Trainer switcher ──────────────────────────────────────────────────────
     _trainer_switcher(trainer, df)
 
-    # ── New player creation ───────────────────────────────────────────────────
-    st.markdown("---")
-    _create_player_section()
-    st.markdown("---")
-
     # ── Current trainer data ──────────────────────────────────────────────────
     row = df[df["trainer"] == trainer]
 
@@ -313,6 +308,45 @@ def render():
     )
 
     if has_starter:
+        poke_name  = _safe_val(row, "starter", "")
+        poke_id    = _safe_int(_safe_val(row, "starter_id", 0))
+        level      = _safe_int(_safe_val(row, "level", 5), 5)
+        wins       = _safe_int(_safe_val(row, "wins", 0))
+        losses     = _safe_int(_safe_val(row, "losses", 0))
+        badges_n   = _safe_int(_safe_val(row, "badges", 0))
+
+        sprite_url = f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{poke_id}.png"
+
+        st.markdown(f"## {emoji} Welcome back, {trainer}!")
+        c1, c2 = st.columns([1, 2])
+        with c1:
+            st.image(sprite_url, width=200)
+        with c2:
+            st.markdown(f"### {poke_name}")
+            st.markdown(f"**Level:** {level} &nbsp;|&nbsp; **Wins:** {wins} &nbsp;|&nbsp; **Losses:** {losses}")
+            st.markdown(f"**Gym Badges:** {'🏅' * badges_n if badges_n > 0 else '_None yet_'}")
+            st.markdown("---")
+            st.markdown("Use the sidebar to head into battle or challenge a gym!")
+
+        # Restore session pokemon if cleared
+        if not st.session_state.get("my_pokemon") or st.session_state.my_pokemon.get("name") != poke_name:
+            from utils.pokemon_api import fetch_pokemon
+            poke = fetch_pokemon(poke_id)
+            poke["level"] = level
+            st.session_state.my_pokemon    = poke
+            st.session_state.my_max_hp     = poke["hp"]
+            st.session_state.my_current_hp = poke["hp"]
+            st.session_state.my_level      = level
+            if not st.session_state.get("my_moves"):
+                from utils.movesets_manager import get_moveset, init_movesets_csv
+                init_movesets_csv()
+                custom = get_moveset(trainer, poke_id)
+                st.session_state.my_moves = custom if custom else fetch_moves(poke_id)
+
+        # ── New player creation (always visible) ──────────────────────────────
+        st.markdown("---")
+        _create_player_section()
+        return
         poke_name  = _safe_val(row, "starter", "")
         poke_id    = _safe_int(_safe_val(row, "starter_id", 0))
         level      = _safe_int(_safe_val(row, "level", 5), 5)
