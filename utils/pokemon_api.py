@@ -2,7 +2,7 @@ import requests
 import random
 import streamlit as st
 
-# All 9 Gen 1-3 starters
+# All starters from Gen 1–9
 ALL_STARTERS = [
     # Gen 1
     1,   # Bulbasaur
@@ -16,6 +16,30 @@ ALL_STARTERS = [
     252, # Treecko
     255, # Torchic
     258, # Mudkip
+    # Gen 4
+    387, # Turtwig
+    390, # Chimchar
+    393, # Piplup
+    # Gen 5
+    495, # Snivy
+    498, # Tepig
+    501, # Oshawott
+    # Gen 6
+    650, # Chespin
+    653, # Fennekin
+    656, # Froakie
+    # Gen 7
+    722, # Rowlet
+    725, # Litten
+    728, # Popplio
+    # Gen 8
+    810, # Grookey
+    813, # Scorbunny
+    816, # Sobble
+    # Gen 9
+    906, # Sprigatito
+    909, # Fuecoco
+    912, # Quaxly
 ]
 
 # Type color map
