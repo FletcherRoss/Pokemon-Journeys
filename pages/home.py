@@ -93,45 +93,56 @@ def _trainer_switcher(current: str, df):
 
 # ── Create new player flow ─────────────────────────────────────────────────────
 
-def _create_player_section():
-    """Prominent create new player section."""
-    st.markdown("### ➕ Create New Player")
-    st.markdown(
-        '<div style="background:rgba(61,125,202,0.1);border:1px solid var(--poke-blue);'
-        'border-radius:10px;padding:0.8rem 1rem;margin-bottom:0.8rem;font-size:0.82rem;color:var(--text-muted);">'
-        'Add a new trainer — they will pick a starter Pokémon and join the game.'
-        '</div>',
-        unsafe_allow_html=True
-    )
+def _create_player_button():
+    """Small ➕ New Player button rendered in top-right corner."""
+    if st.session_state.get("show_new_player_form"):
+        # Inline form
+        st.markdown(
+            '<div style="background:linear-gradient(145deg,#1e2a4a,#0f1a35);'
+            'border:2px solid var(--poke-blue);border-radius:12px;padding:1rem;margin-bottom:0.5rem;">'
+            '<b style="color:var(--poke-yellow);">➕ New Player</b>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+        new_name = st.text_input(
+            "Player name:", key="new_trainer_name_input",
+            placeholder="Unique name…", max_chars=20,
+            label_visibility="collapsed"
+        ).strip()
 
-    new_name = st.text_input(
-        "New player name:",
-        key="new_trainer_name_input",
-        placeholder="Enter a unique name…",
-        max_chars=20,
-    ).strip()
+        existing = [t.lower() for t in get_all_trainers()]
+        name_ok  = bool(new_name) and len(new_name) >= 2 and new_name.lower() not in existing
 
-    existing = [t.lower() for t in get_all_trainers()]
-    name_ok  = bool(new_name) and len(new_name) >= 2 and new_name.lower() not in existing
+        if new_name:
+            if new_name.lower() in existing:
+                st.error(f"❌ '{new_name}' already taken.")
+            elif len(new_name) < 2:
+                st.warning("Min 2 characters.")
+            else:
+                st.success(f"✅ '{new_name}' available!")
 
-    if new_name:
-        if new_name.lower() in existing:
-            st.error(f"❌ '{new_name}' is already taken. Choose a different name.")
-        elif len(new_name) < 2:
-            st.warning("Name must be at least 2 characters.")
-        else:
-            st.success(f"✅ '{new_name}' is available!")
-
-    if st.button("🎮 Create Player & Pick Starter", use_container_width=True,
-                 key="create_player_btn", disabled=not name_ok):
-        ok = add_trainer(new_name)
-        if ok:
-            st.session_state.new_player_name   = new_name
-            st.session_state.new_player_phase  = "pick_starter"
-            st.session_state.starter_options   = None
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("🎮 Create & Pick Starter", use_container_width=True,
+                         key="create_player_btn", disabled=not name_ok):
+                ok = add_trainer(new_name)
+                if ok:
+                    st.session_state.new_player_name  = new_name
+                    st.session_state.new_player_phase = "pick_starter"
+                    st.session_state.starter_options  = None
+                    st.session_state.show_new_player_form = False
+                    st.rerun()
+                else:
+                    st.error("Name already exists.")
+        with c2:
+            if st.button("✖ Cancel", use_container_width=True, key="cancel_new_player"):
+                st.session_state.show_new_player_form = False
+                st.rerun()
+    else:
+        if st.button("➕ New Player", key="show_new_player_btn", use_container_width=True):
+            st.session_state.show_new_player_form = True
             st.rerun()
-        else:
-            st.error("Failed to create player — name may already exist.")
+
 
 
 def _new_player_starter_pick():
@@ -249,9 +260,16 @@ def _finalise_new_player(name: str, poke: dict):
 # ── Main render ────────────────────────────────────────────────────────────────
 
 def render():
-    st.markdown('<div class="pokeball-header">⚡ POKÉMON JOURNEYS ⚡</div>', unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
+    # ── Top bar: title left, new player button right ──────────────────────────
+    top_left, top_right = st.columns([4, 1])
+    with top_left:
+        st.markdown('<div class="pokeball-header">⚡ POKÉMON JOURNEYS ⚡</div>', unsafe_allow_html=True)
+    with top_right:
+        st.markdown("<div style='padding-top:10px;'>", unsafe_allow_html=True)
+        _create_player_button()
+        st.markdown("</div>", unsafe_allow_html=True)
 
+    st.markdown("<br>", unsafe_allow_html=True)
     df = load_teams()
 
     # ── New player starter pick (full screen flow) ────────────────────────────
@@ -280,8 +298,6 @@ def render():
                     st.session_state.trainer_name = trainer
                     st.rerun()
 
-        st.markdown("---")
-        _create_player_section()
         return
 
     trainer = st.session_state.trainer_name
@@ -343,9 +359,7 @@ def render():
                 custom = get_moveset(trainer, poke_id)
                 st.session_state.my_moves = custom if custom else fetch_moves(poke_id)
 
-        # ── New player creation (always visible) ──────────────────────────────
-        st.markdown("---")
-        _create_player_section()
+        # ── Always visible at bottom ──────────────────────────────────────────
         return
         poke_name  = _safe_val(row, "starter", "")
         poke_id    = _safe_int(_safe_val(row, "starter_id", 0))
