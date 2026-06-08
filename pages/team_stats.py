@@ -6,7 +6,7 @@ if str(ROOT) not in sys.path:
 
 import streamlit as st
 import pandas as pd
-from utils.csv_manager import load_teams, save_teams, update_trainer
+from utils.csv_manager import load_teams, save_teams, update_trainer, get_all_trainers
 from utils.captures_manager import (
     load_captures, save_captures, init_captures_csv,
     level_up_captured, check_and_evolve_captured, level_up_and_check_evolve,
@@ -652,8 +652,12 @@ def render():
     )
     st.markdown("<br>", unsafe_allow_html=True)
 
-    team_tabs = st.tabs(["🌸 Addy", "⚡ Oakley", "🔥 Raelynn"])
-    for tab, tab_trainer in zip(team_tabs, ["Addy", "Oakley", "Raelynn"]):
+    all_trainers = get_all_trainers()
+    def _tab_label(t):
+        emojis = {"Addy":"🌸","Oakley":"⚡","Raelynn":"🔥"}
+        return f"{emojis.get(t, '🎮')} {t}"
+    team_tabs = st.tabs([_tab_label(t) for t in all_trainers])
+    for tab, tab_trainer in zip(team_tabs, all_trainers):
         with tab:
             _team_management_card(tab_trainer, teams_df, captures_df)
 
@@ -668,8 +672,8 @@ def render():
     )
     st.markdown("<br>", unsafe_allow_html=True)
 
-    trainer_tabs = st.tabs(["🌸 Addy", "⚡ Oakley", "🔥 Raelynn"])
-    for tab, tab_trainer in zip(trainer_tabs, ["Addy", "Oakley", "Raelynn"]):
+    trainer_tabs = st.tabs([_tab_label(t) for t in all_trainers])
+    for tab, tab_trainer in zip(trainer_tabs, all_trainers):
         with tab:
             st.markdown("#### Starter")
             _starter_levelup_card(tab_trainer, teams_df)
@@ -691,7 +695,7 @@ def render():
     st.markdown("---")
     st.markdown("### ⚾ Pokémon Captured per Trainer")
     cap_df = pd.DataFrame(
-        {t: [len(captures_df[captures_df["trainer"] == t])] for t in ["Addy", "Oakley", "Raelynn"]},
+        {t: [len(captures_df[captures_df["trainer"] == t])] for t in all_trainers},
         index=["Caught"]
     ).T
     st.bar_chart(cap_df, color=["#FFCB05"])
