@@ -7,6 +7,7 @@ if str(ROOT) not in sys.path:
 import streamlit as st
 from utils.csv_manager import load_teams, save_teams, update_trainer
 from utils.captures_manager import init_captures_csv, level_up_team
+from utils.story_mode_utils import award_master_ball, get_master_balls, use_master_ball
 
 TRAINERS       = ["Addy", "Oakley", "Raelynn"]
 TRAINER_COLORS = {"Addy": "#F06292", "Oakley": "#64B5F6", "Raelynn": "#FFB74D"}
@@ -42,35 +43,6 @@ def _safe_int(val, default=0):
         return default
 
 
-# Master Ball helpers
-
-def award_master_ball(trainer: str, amount: int = 1):
-    df = load_teams()
-    row = df[df["trainer"] == trainer]
-    if len(row):
-        cur = _safe_int(row.iloc[0].get("master_balls", 0))
-        df = update_trainer(df, trainer, master_balls=cur + amount)
-        save_teams(df)
-
-
-def get_master_balls(trainer: str) -> int:
-    df = load_teams()
-    row = df[df["trainer"] == trainer]
-    if len(row):
-        return _safe_int(row.iloc[0].get("master_balls", 0))
-    return 0
-
-
-def use_master_ball(trainer: str) -> bool:
-    df = load_teams()
-    row = df[df["trainer"] == trainer]
-    if len(row):
-        cur = _safe_int(row.iloc[0].get("master_balls", 0))
-        if cur > 0:
-            df = update_trainer(df, trainer, master_balls=cur - 1)
-            save_teams(df)
-            return True
-    return False
 
 
 # Session state
