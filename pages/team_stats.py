@@ -13,7 +13,8 @@ from utils.captures_manager import (
     get_active_captures, set_capture_active, MAX_ACTIVE,
 )
 from utils.pokemon_api import (
-    get_evolution, fetch_pokemon, type_badge_html, fetch_all_learnable_moves
+    get_evolution, fetch_pokemon, type_badge_html, fetch_all_learnable_moves,
+    can_evolve_preview
 )
 from utils.movesets_manager import (
     init_movesets_csv, load_movesets, save_moveset, get_moveset,
@@ -451,7 +452,7 @@ def _starter_levelup_card(trainer: str, teams_df: pd.DataFrame):
             save_teams(updated)
             if st.session_state.get("trainer_name") == trainer:
                 st.session_state.my_level = new_level
-            evolved = get_evolution(starter_id)
+            evolved = get_evolution(starter_id, current_level=new_level)
             if evolved:
                 updated2 = update_trainer(updated, trainer,
                     starter=evolved["name"], starter_id=evolved["id"])
@@ -501,13 +502,16 @@ def _captures_levelup_grid(trainer: str, captures_df: pd.DataFrame):
             types   = _type_pills(cap.get("types", "normal"))
             color   = TRAINER_COLORS.get(trainer, "#888")
             current_moves = get_moveset(trainer, poke_id)
-            evo_available = get_evolution(poke_id) is not None
+            evo_ok, evo_reason = can_evolve_preview(poke_id, cur_lv)
 
             with col:
-                evo_badge = (
-                    '<div style="font-size:0.65rem;color:#FFCB05;margin-top:2px;">&#10024; Can evolve!</div>'
-                    if evo_available else ""
-                )
+                if evo_ok:
+                    evo_badge = f'<div style="font-size:0.65rem;color:#FFCB05;margin-top:2px;">&#10024; {evo_reason}</div>'
+                elif evo_reason not in ("No evolution",):
+                    evo_badge = f'<div style="font-size:0.65rem;color:#a0a8c0;margin-top:2px;">{evo_reason}</div>'
+                else:
+                    evo_badge = ""
+
                 moves_names = ' &middot; '.join(m['name'] for m in current_moves) if current_moves else 'No moves set'
                 moves_line  = f'<div style="font-size:0.6rem;color:#a0a8c0;margin-top:3px;">&#9876; {moves_names}</div>'
 
