@@ -259,20 +259,35 @@ def _phase_pick():
         cat_label  = "Battle" if cat == "battle" else "Chance"
 
         with col:
-            st.markdown(
-                f'<div style="background:linear-gradient(145deg,#1e2a4a,#0f1a35);'
-                f'border:2px solid {ccolor};border-radius:14px;padding:1rem;'
-                f'text-align:center;min-height:160px;">'
-                f'<div style="font-size:0.6rem;color:#aaa;text-transform:uppercase;letter-spacing:1px;">{cat_label}</div>'
-                f'<div style="font-size:2rem;margin:6px 0;">{card["emoji"]}</div>'
-                f'<div style="font-weight:700;font-size:0.85rem;margin:4px 0;">{card["name"]}</div>'
-                f'<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px;">{card["desc"]}</div>'
-                f'<div style="font-size:1rem;font-weight:700;color:{ccolor};">{pts_label}</div>'
-                f'{double_tag}'
-                f'</div>',
-                unsafe_allow_html=True
-            )
-            if st.button(f"Choose {card['name']}", key=f"sm_pick_{trainer}_{card['id']}_{cur_round}",
+            if cat == "chance":
+                # Face-down — only show it's a Chance card, no details
+                st.markdown(
+                    f'<div style="background:linear-gradient(145deg,#1a1a3a,#0f0f2a);'
+                    f'border:2px solid #A040A0;border-radius:14px;padding:1rem;'
+                    f'text-align:center;min-height:160px;">'
+                    f'<div style="font-size:0.6rem;color:#A040A0;text-transform:uppercase;letter-spacing:1px;">Chance</div>'
+                    f'<div style="font-size:2.5rem;margin:10px 0;">❓</div>'
+                    f'<div style="font-weight:700;font-size:0.85rem;margin:4px 0;color:#A040A0;">Mystery Card</div>'
+                    f'<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px;">Revealed at end of round</div>'
+                    f'<div style="font-size:1rem;font-weight:700;color:#A040A0;">? pts</div>'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+            else:
+                st.markdown(
+                    f'<div style="background:linear-gradient(145deg,#1e2a4a,#0f1a35);'
+                    f'border:2px solid {ccolor};border-radius:14px;padding:1rem;'
+                    f'text-align:center;min-height:160px;">'
+                    f'<div style="font-size:0.6rem;color:#aaa;text-transform:uppercase;letter-spacing:1px;">{cat_label}</div>'
+                    f'<div style="font-size:2rem;margin:6px 0;">{card["emoji"]}</div>'
+                    f'<div style="font-weight:700;font-size:0.85rem;margin:4px 0;">{card["name"]}</div>'
+                    f'<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px;">{card["desc"]}</div>'
+                    f'<div style="font-size:1rem;font-weight:700;color:{ccolor};">{pts_label}</div>'
+                    f'{double_tag}'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+            if st.button(f"Choose {'Mystery Chance' if cat == 'chance' else card['name']}", key=f"sm_pick_{trainer}_{card['id']}_{cur_round}",
                          use_container_width=True):
                 picked_map[trainer] = card
                 st.session_state.sm_picked_card = picked_map
@@ -327,6 +342,19 @@ def _phase_resolve():
             continue
 
         if cat == "chance":
+            # Reveal the card with a flash banner
+            ccolor = card["color"]
+            st.markdown(
+                f'<div style="background:linear-gradient(145deg,#2a1a4a,#1a0f3a);'
+                f'border:2px solid {ccolor};border-radius:12px;padding:0.8rem;'
+                f'text-align:center;margin-bottom:6px;">'
+                f'<div style="font-size:0.6rem;color:{ccolor};text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;">Chance Revealed!</div>'
+                f'<div style="font-size:1.8rem;">{card["emoji"]}</div>'
+                f'<div style="font-weight:700;font-size:0.9rem;color:{ccolor};margin:3px 0;">{card["name"]}</div>'
+                f'<div style="font-size:0.78rem;color:var(--text-muted);">{card["desc"]}</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
             if st.button(f"Apply: {card['name']} for {trainer}",
                          key=f"sm_apply_{cur_round}_{trainer}", use_container_width=False):
                 pts = _apply_chance(trainer, card, scores, players, double_map, log)
