@@ -24,14 +24,14 @@ BATTLE_EVENTS = [
 ]
 
 CHANCE_EVENTS = [
-    {"id": "heal",      "emoji": "💊", "name": "Pokemon Center",  "desc": "Team fully healed! +1 pt.",           "points": 1,  "effect": "heal"},
-    {"id": "levelup",   "emoji": "⬆", "name": "Level Up!",       "desc": "Whole team levels up x1. +2 pts.",    "points": 2,  "effect": "levelup"},
-    {"id": "rocket",    "emoji": "🚀", "name": "Team Rocket!",    "desc": "Ambushed! Lose 1 pt.",                "points": -1, "effect": "rocket"},
-    {"id": "bonus",     "emoji": "⭐", "name": "Bonus Points",    "desc": "Found a rare item! +2 pts.",           "points": 2,  "effect": "none"},
-    {"id": "nothing",   "emoji": "💨", "name": "Nothing Happens", "desc": "Quiet day. 0 pts.",                    "points": 0,  "effect": "none"},
-    {"id": "double",    "emoji": "🔥", "name": "Hot Streak",      "desc": "Double pts next battle card. +0 now.", "points": 0,  "effect": "double_next"},
-    {"id": "swap",      "emoji": "🃏", "name": "Point Swap",      "desc": "Swap points with the leader!",         "points": 0,  "effect": "swap"},
-    {"id": "warp",      "emoji": "🌀", "name": "Wild Warp",       "desc": "Random +/-2 pts from the chaos zone.", "points": 0,  "effect": "random_pts"},
+    {"id": "heal",    "emoji": "💊", "name": "Pokemon Center",  "desc": "Team fully healed! +1 pt.",           "points": 1,  "effect": "heal",        "color": "#4CAF50"},
+    {"id": "levelup", "emoji": "⬆", "name": "Level Up!",       "desc": "Whole team levels up x1. +2 pts.",    "points": 2,  "effect": "levelup",     "color": "#FFCB05"},
+    {"id": "rocket",  "emoji": "🚀", "name": "Team Rocket!",   "desc": "Ambushed! Lose 1 pt.",                "points": -1, "effect": "rocket",      "color": "#E3350D"},
+    {"id": "bonus",   "emoji": "⭐", "name": "Bonus Points",   "desc": "Found a rare item! +2 pts.",           "points": 2,  "effect": "none",        "color": "#FFCB05"},
+    {"id": "nothing", "emoji": "💨", "name": "Nothing Happens","desc": "Quiet day. 0 pts.",                    "points": 0,  "effect": "none",        "color": "#888888"},
+    {"id": "double",  "emoji": "🔥", "name": "Hot Streak",     "desc": "Double pts next battle card. +0 now.","points": 0,  "effect": "double_next", "color": "#F08030"},
+    {"id": "swap",    "emoji": "🃏", "name": "Point Swap",     "desc": "Swap points with the leader!",         "points": 0,  "effect": "swap",        "color": "#A040A0"},
+    {"id": "warp",    "emoji": "🌀", "name": "Wild Warp",      "desc": "Random +/-2 pts from the chaos zone.", "points": 0,  "effect": "random_pts",  "color": "#6890F0"},
 ]
 
 
