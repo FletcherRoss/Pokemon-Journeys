@@ -8,6 +8,7 @@ import random
 import streamlit as st
 from utils.pokemon_api import get_random_wild, fetch_moves, fetch_pokemon, type_badge_html
 from utils.csv_manager import load_teams, save_teams, update_trainer
+from utils.story_mode_utils import use_master_ball, get_master_balls
 from utils.captures_manager import (
     add_capture, get_capture_count, load_captures, init_captures_csv, level_up_team,
     get_active_captures
@@ -400,7 +401,8 @@ def _render_d20_panel():
         </div>
     </div>""", unsafe_allow_html=True)
 
-    c1, c2, c3 = st.columns(3)
+    mb_count = get_master_balls(trainer)
+    c1, c2, c3, c4 = st.columns(4)
     with c1:
         if st.button("🎲 Throw Pokéball! (Roll d20)", use_container_width=True):
             roll = random.randint(1, 20)
@@ -418,6 +420,16 @@ def _render_d20_panel():
             add_capture(trainer, opp, st.session_state.my_level)
             st.rerun()
     with c3:
+        mb_disabled = mb_count <= 0
+        mb_label    = f"⚪ Master Ball ({mb_count})" if mb_count > 0 else "⚪ No Master Balls"
+        if st.button(mb_label, use_container_width=True, disabled=mb_disabled,
+                     help="Auto-catch! Uses 1 Master Ball."):
+            use_master_ball(trainer)
+            st.session_state.d20_roll = 20
+            st.session_state.capture_result = "caught"
+            add_capture(trainer, opp, st.session_state.my_level)
+            st.rerun()
+    with c4:
         if st.button("⏭️ Skip capture", use_container_width=True):
             st.session_state.capture_result = "skipped"
             st.rerun()
