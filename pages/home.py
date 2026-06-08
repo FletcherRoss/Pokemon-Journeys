@@ -94,44 +94,44 @@ def _trainer_switcher(current: str, df):
 # ── Create new player flow ─────────────────────────────────────────────────────
 
 def _create_player_section():
-    """Expandable section to create a new trainer."""
-    with st.expander("➕ Create New Player"):
-        st.markdown(
-            "<small style='color:var(--text-muted)'>Add a new trainer. "
-            "They will pick a starter Pokémon before joining the game.</small>",
-            unsafe_allow_html=True
-        )
+    """Prominent create new player section."""
+    st.markdown("### ➕ Create New Player")
+    st.markdown(
+        '<div style="background:rgba(61,125,202,0.1);border:1px solid var(--poke-blue);'
+        'border-radius:10px;padding:0.8rem 1rem;margin-bottom:0.8rem;font-size:0.82rem;color:var(--text-muted);">'
+        'Add a new trainer — they will pick a starter Pokémon and join the game.'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
-        new_name = st.text_input(
-            "Player name:",
-            key="new_trainer_name_input",
-            placeholder="Enter a unique name…",
-            max_chars=20,
-        ).strip()
+    new_name = st.text_input(
+        "New player name:",
+        key="new_trainer_name_input",
+        placeholder="Enter a unique name…",
+        max_chars=20,
+    ).strip()
 
-        # Live validation
-        existing = [t.lower() for t in get_all_trainers()]
-        name_ok  = bool(new_name) and new_name.lower() not in existing
+    existing = [t.lower() for t in get_all_trainers()]
+    name_ok  = bool(new_name) and len(new_name) >= 2 and new_name.lower() not in existing
 
-        if new_name:
-            if new_name.lower() in existing:
-                st.error(f"❌ '{new_name}' is already taken. Choose a different name.")
-            elif len(new_name) < 2:
-                st.warning("Name must be at least 2 characters.")
-            else:
-                st.success(f"✅ '{new_name}' is available!")
+    if new_name:
+        if new_name.lower() in existing:
+            st.error(f"❌ '{new_name}' is already taken. Choose a different name.")
+        elif len(new_name) < 2:
+            st.warning("Name must be at least 2 characters.")
+        else:
+            st.success(f"✅ '{new_name}' is available!")
 
-        if name_ok and st.button("🎮 Create Player & Pick Starter", use_container_width=True,
-                                  key="create_player_btn"):
-            # Add to CSV first (blank starter — they'll pick next)
-            ok = add_trainer(new_name)
-            if ok:
-                st.session_state.new_player_name   = new_name
-                st.session_state.new_player_phase  = "pick_starter"
-                st.session_state.starter_options   = None
-                st.rerun()
-            else:
-                st.error("Failed to create player — name may already exist.")
+    if st.button("🎮 Create Player & Pick Starter", use_container_width=True,
+                 key="create_player_btn", disabled=not name_ok):
+        ok = add_trainer(new_name)
+        if ok:
+            st.session_state.new_player_name   = new_name
+            st.session_state.new_player_phase  = "pick_starter"
+            st.session_state.starter_options   = None
+            st.rerun()
+        else:
+            st.error("Failed to create player — name may already exist.")
 
 
 def _new_player_starter_pick():
@@ -292,9 +292,9 @@ def render():
     _trainer_switcher(trainer, df)
 
     # ── New player creation ───────────────────────────────────────────────────
+    st.markdown("---")
     _create_player_section()
-
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("---")
 
     # ── Current trainer data ──────────────────────────────────────────────────
     row = df[df["trainer"] == trainer]
