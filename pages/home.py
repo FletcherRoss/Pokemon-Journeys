@@ -261,11 +261,7 @@ def _finalise_new_player(name: str, poke: dict):
 
 def render():
     st.markdown('<div class="pokeball-header">⚡ POKÉMON JOURNEYS ⚡</div>', unsafe_allow_html=True)
-
-    # ── New Player button — always visible at top ─────────────────────────────
-    _create_player_button()
-    st.markdown("---")
-
+    st.markdown("<br>", unsafe_allow_html=True)
     df = load_teams()
 
     # ── New player starter pick (full screen flow) ────────────────────────────
