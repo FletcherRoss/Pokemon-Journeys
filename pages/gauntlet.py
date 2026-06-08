@@ -8,6 +8,7 @@ import random
 import streamlit as st
 from utils.pokemon_api import fetch_pokemon, fetch_moves, type_badge_html
 from utils.csv_manager import load_teams, save_teams, update_trainer
+from utils.story_mode_utils import use_master_ball, get_master_balls
 from utils.captures_manager import add_capture, init_captures_csv, level_up_team
 from utils.game_state import hp_percent, hp_bar_color, damage_calc
 
@@ -236,7 +237,7 @@ def _trainer_card(trainer, poke, hp, max_hp):
         _hp_bar("HP", hp, max_hp)
 
 
-def _capture_ui(poke, threshold, cap_key):
+def _capture_ui(poke, threshold, cap_key, trainer=None):
     """
     Show capture UI. Returns 'caught'|'escaped'|'skipped'|None.
     Manages its own roll state via cap_key.
@@ -267,7 +268,8 @@ def _capture_ui(poke, threshold, cap_key):
     roll_val = st.session_state.get(f"{cap_key}_roll")
 
     if roll_res is None:
-        c1, c2, c3 = st.columns(3)
+        mb_count = get_master_balls(trainer) if trainer else 0
+        c1, c2, c3, c4 = st.columns(4)
         with c1:
             if st.button("🎲 Roll d20!", key=f"{cap_key}_btn", use_container_width=True):
                 roll = random.randint(1, 20)
@@ -280,6 +282,16 @@ def _capture_ui(poke, threshold, cap_key):
                 st.session_state[f"{cap_key}_result"] = "caught"
                 st.rerun()
         with c3:
+            mb_label    = f"⚪ Master Ball ({mb_count})" if mb_count > 0 else "⚪ No Master Balls"
+            mb_disabled = mb_count <= 0
+            if st.button(mb_label, key=f"{cap_key}_mb", use_container_width=True,
+                         disabled=mb_disabled, help="Auto-catch! Uses 1 Master Ball."):
+                if trainer:
+                    use_master_ball(trainer)
+                st.session_state[f"{cap_key}_roll"]   = 20
+                st.session_state[f"{cap_key}_result"] = "caught"
+                st.rerun()
+        with c4:
             if st.button("⏭️ Skip", key=f"{cap_key}_skip", use_container_width=True):
                 st.session_state[f"{cap_key}_result"] = "skipped"
                 st.rerun()
@@ -1045,7 +1057,8 @@ def _phase_capture():
 
     if roll_res is None:
         # Show roll buttons (one chance only)
-        c1, c2, c3 = st.columns(3)
+        mb_count    = get_master_balls(trainer) if trainer else 0
+        c1, c2, c3, c4 = st.columns(4)
         with c1:
             if st.button("🎲 Roll d20!", key=f"{cap_key}_btn", use_container_width=True):
                 roll = random.randint(1, 20)
@@ -1058,6 +1071,16 @@ def _phase_capture():
                 st.session_state[f"{cap_key}_result"] = "caught"
                 st.rerun()
         with c3:
+            mb_label    = f"⚪ Master Ball ({mb_count})" if mb_count > 0 else "⚪ No Master Balls"
+            mb_disabled = mb_count <= 0
+            if st.button(mb_label, key=f"{cap_key}_mb", use_container_width=True,
+                         disabled=mb_disabled, help="Auto-catch! Uses 1 Master Ball."):
+                if trainer:
+                    use_master_ball(trainer)
+                st.session_state[f"{cap_key}_roll"]   = 20
+                st.session_state[f"{cap_key}_result"] = "caught"
+                st.rerun()
+        with c4:
             if st.button("⏭️ Skip", key=f"{cap_key}_skip", use_container_width=True):
                 st.session_state[f"{cap_key}_result"] = "skipped"
                 st.rerun()
