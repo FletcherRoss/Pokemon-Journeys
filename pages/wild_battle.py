@@ -329,7 +329,7 @@ def _record_result(result: str):
 def _try_evolve():
     from utils.pokemon_api import get_evolution
     poke    = st.session_state.my_pokemon
-    evolved = get_evolution(poke["id"])
+    evolved = get_evolution(poke["id"], current_level=st.session_state.get("my_level", 5))
     if evolved:
         st.session_state.my_pokemon    = evolved
         st.session_state.my_max_hp     = evolved["hp"]
