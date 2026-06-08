@@ -164,7 +164,11 @@ def check_and_evolve_captured(capture_index: int) -> dict | None:
 
     row    = df.loc[capture_index]
     poke_id = int(float(row["pokemon_id"]))
-    evolved = get_evolution(poke_id)
+    try:
+        cur_lv = int(float(row.get("current_level") or row.get("level_caught") or 5))
+    except (ValueError, TypeError):
+        cur_lv = 5
+    evolved = get_evolution(poke_id, current_level=cur_lv)
     if not evolved:
         return None
 
