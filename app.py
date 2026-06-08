@@ -242,6 +242,47 @@ with st.sidebar:
         </div>""", unsafe_allow_html=True)
 
     st.markdown("---")
+
+    # ── Create New Player ─────────────────────────────────────────────────────
+    st.markdown("### ➕ New Player")
+    if st.session_state.get("sidebar_new_player_open"):
+        new_name = st.text_input("Name:", key="sb_new_name",
+                                 placeholder="Unique name…", max_chars=20,
+                                 label_visibility="collapsed").strip()
+        from utils.csv_manager import get_all_trainers, add_trainer
+        existing = [t.lower() for t in get_all_trainers()]
+        name_ok  = bool(new_name) and len(new_name) >= 2 and new_name.lower() not in existing
+        if new_name:
+            if new_name.lower() in existing:
+                st.error(f"❌ '{new_name}' taken")
+            elif len(new_name) < 2:
+                st.warning("Min 2 chars")
+            else:
+                st.success(f"✅ '{new_name}' available!")
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("🎮 Create", use_container_width=True,
+                         key="sb_create_btn", disabled=not name_ok):
+                ok = add_trainer(new_name)
+                if ok:
+                    st.session_state.new_player_name          = new_name
+                    st.session_state.new_player_phase         = "pick_starter"
+                    st.session_state.starter_options          = None
+                    st.session_state.sidebar_new_player_open  = False
+                    st.session_state.nav_page                 = "🏠 Home"
+                    st.rerun()
+                else:
+                    st.error("Name already exists.")
+        with c2:
+            if st.button("✖ Cancel", use_container_width=True, key="sb_cancel_btn"):
+                st.session_state.sidebar_new_player_open = False
+                st.rerun()
+    else:
+        if st.button("➕ Add New Player", use_container_width=True, key="sb_new_player_btn"):
+            st.session_state.sidebar_new_player_open = True
+            st.rerun()
+
+    st.markdown("---")
     st.markdown("### 🗺 Navigation")
 
     PAGES = [
