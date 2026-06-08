@@ -23,7 +23,40 @@ CSV_PATH     = "data/teams.csv"
 BRANCH       = "main"
 API_BASE     = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{CSV_PATH}"
 
-TRAINERS = ["Addy", "Oakley", "Raelynn"]
+# Default trainers seeded on first run — more can be added via add_trainer()
+DEFAULT_TRAINERS = ["Addy", "Oakley", "Raelynn"]
+
+
+def get_all_trainers() -> list[str]:
+    """Return all trainer names currently in teams.csv."""
+    df = load_teams()
+    if df.empty:
+        return list(DEFAULT_TRAINERS)
+    return list(df["trainer"].unique())
+
+
+def trainer_exists(name: str) -> bool:
+    return name.strip() in get_all_trainers()
+
+
+def add_trainer(name: str) -> bool:
+    """Add a new trainer row to teams.csv. Returns False if name already taken."""
+    name = name.strip()
+    if not name or trainer_exists(name):
+        return False
+    df = load_teams()
+    import pandas as _pd
+    new_row = {
+        "trainer": name, "starter": "", "starter_id": 0, "level": 5,
+        "wins": 0, "losses": 0, "badges": 0,
+        "badge_rock": 0, "badge_grass": 0, "badge_water": 0, "badge_fire": 0,
+        "badge_psychic": 0, "badge_normal": 0, "badge_ice": 0, "badge_elite": 0,
+        "evolutions": 0, "selected_moves": "", "master_balls": 0,
+    }
+    df = _pd.concat([df, _pd.DataFrame([new_row])], ignore_index=True)
+    df = df.astype(object)
+    save_teams(df)
+    return True
 
 COLUMNS = [
     "trainer", "starter", "starter_id", "level",
@@ -38,7 +71,7 @@ LOCAL_CSV = os.path.join(os.path.dirname(__file__), "..", "data", "teams.csv")
 
 def _default_df() -> pd.DataFrame:
     rows = []
-    for trainer in TRAINERS:
+    for trainer in DEFAULT_TRAINERS:
         rows.append({
             "trainer": trainer, "starter": "", "starter_id": 0, "level": 5,
             "wins": 0, "losses": 0, "badges": 0,
