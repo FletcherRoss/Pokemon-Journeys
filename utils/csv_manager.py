@@ -30,7 +30,7 @@ COLUMNS = [
     "wins", "losses", "badges",
     "badge_rock", "badge_grass", "badge_water", "badge_fire",
     "badge_psychic", "badge_normal", "badge_ice", "badge_elite",
-    "evolutions", "selected_moves",
+    "evolutions", "selected_moves", "master_balls",
 ]
 
 LOCAL_CSV = os.path.join(os.path.dirname(__file__), "..", "data", "teams.csv")
@@ -44,7 +44,7 @@ def _default_df() -> pd.DataFrame:
             "wins": 0, "losses": 0, "badges": 0,
             "badge_rock": 0, "badge_grass": 0, "badge_water": 0, "badge_fire": 0,
             "badge_psychic": 0, "badge_normal": 0, "badge_ice": 0, "badge_elite": 0,
-            "evolutions": 0, "selected_moves": "",
+            "evolutions": 0, "selected_moves": "", "master_balls": 0,
         })
     return pd.DataFrame(rows, columns=COLUMNS)
 
