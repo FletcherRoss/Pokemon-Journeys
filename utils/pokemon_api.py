@@ -187,35 +187,109 @@ def get_gym_leader_team(gym_index: int) -> list[dict]:
     return [fetch_pokemon(pid) for pid in team_ids]
 
 
-def get_evolution(pokemon_id: int) -> dict | None:
-    """Return evolved form data if available."""
+def get_evolution_info(pokemon_id: int) -> dict | None:
+    """
+    Return evolution info dict or None if no evolution exists.
+    Dict contains:
+      - evolved: the evolved pokemon dict
+      - min_level: int or None (None means no level requirement)
+      - trigger: str (e.g. 'level-up', 'use-item', 'trade', 'shed')
+      - item: str or None (e.g. 'fire-stone')
+    """
     try:
         r = requests.get(f"{BASE_URL}/pokemon-species/{pokemon_id}", timeout=10)
         r.raise_for_status()
         evo_url = r.json()["evolution_chain"]["url"]
-        evo_r = requests.get(evo_url, timeout=10)
+        evo_r   = requests.get(evo_url, timeout=10)
         evo_r.raise_for_status()
-        chain = evo_r.json()["chain"]
+        chain   = evo_r.json()["chain"]
 
-        # Walk the chain to find next evolution
         def find_next(node, target_id):
             if node["species"]["url"].split("/")[-2] == str(target_id):
                 if node["evolves_to"]:
-                    next_species = node["evolves_to"][0]["species"]
-                    next_id = int(next_species["url"].split("/")[-2])
-                    return next_id
+                    evo_node    = node["evolves_to"][0]
+                    next_id     = int(evo_node["species"]["url"].split("/")[-2])
+                    details     = evo_node.get("evolution_details", [{}])[0]
+                    trigger     = details.get("trigger", {}).get("name", "level-up")
+                    min_level   = details.get("min_level")  # None if not level-based
+                    item        = None
+                    if details.get("item"):
+                        item = details["item"].get("name")
+                    return {"next_id": next_id, "trigger": trigger,
+                            "min_level": min_level, "item": item}
             for child in node["evolves_to"]:
                 result = find_next(child, target_id)
                 if result:
                     return result
             return None
 
-        next_id = find_next(chain, pokemon_id)
-        if next_id:
-            return fetch_pokemon(next_id)
+        info = find_next(chain, pokemon_id)
+        if info:
+            evolved = fetch_pokemon(info["next_id"])
+            return {
+                "evolved":   evolved,
+                "trigger":   info["trigger"],
+                "min_level": info["min_level"],
+                "item":      info["item"],
+            }
     except Exception:
         pass
     return None
+
+
+def get_evolution(pokemon_id: int, current_level: int = None) -> dict | None:
+    """
+    Return evolved form if the pokemon can evolve.
+    - Level-up evolutions: only if current_level >= min_level (or no min_level set).
+    - Item/trade/other evolutions: always allowed (no level gate).
+    Pass current_level=None to skip the level check entirely (backwards compat).
+    """
+    info = get_evolution_info(pokemon_id)
+    if not info:
+        return None
+
+    trigger   = info["trigger"]
+    min_level = info["min_level"]
+    evolved   = info["evolved"]
+
+    # Item, trade, shed evolutions — always allow
+    if trigger in ("use-item", "trade", "shed"):
+        return evolved
+
+    # Level-up evolution — enforce level requirement if provided
+    if trigger == "level-up":
+        if current_level is not None and min_level is not None:
+            if current_level < min_level:
+                return None   # not high enough yet
+        return evolved
+
+    # Any other trigger — allow freely
+    return evolved
+
+
+def can_evolve_preview(pokemon_id: int, current_level: int) -> tuple[bool, str]:
+    """
+    Returns (can_evolve_now, reason_string) for UI display.
+    e.g. (False, "Needs Lv.36") or (True, "Ready!") or (True, "Needs Fire Stone")
+    """
+    info = get_evolution_info(pokemon_id)
+    if not info:
+        return False, "No evolution"
+
+    trigger   = info["trigger"]
+    min_level = info["min_level"]
+    item      = info["item"]
+
+    if trigger in ("use-item", "trade", "shed"):
+        item_name = item.replace("-", " ").title() if item else "item/trade"
+        return True, f"Needs {item_name}"
+
+    if trigger == "level-up":
+        if min_level is not None and current_level < min_level:
+            return False, f"Needs Lv.{min_level}"
+        return True, "Ready to evolve!"
+
+    return True, "Ready to evolve!"
 
 
 def get_pokemon_sprite(pokemon_id: int, animated: bool = True) -> str:
