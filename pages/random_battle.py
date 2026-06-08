@@ -49,8 +49,8 @@ def _hp_bar(label, current, maximum):
 
 
 def _random_pool(size=POOL_SIZE) -> list[int]:
-    """Return unique random Pokémon IDs from Gen 1–3 (1–386)."""
-    return random.sample(range(1, 387), size)
+    """Return unique random Pokémon IDs from all generations (up to Gen 9)."""
+    return random.sample(range(1, 1026), size)
 
 
 def _balanced_moveset(pokemon_id: int) -> list[dict]:
