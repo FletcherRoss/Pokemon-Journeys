@@ -165,8 +165,8 @@ def get_random_starters(n: int = 3) -> list[dict]:
     return [fetch_pokemon(pid) for pid in chosen_ids]
 
 
-def get_random_wild(min_id: int = 1, max_id: int = 386) -> dict:
-    """Return a random wild pokemon (Gen 1-3 dex)."""
+def get_random_wild(min_id: int = 1, max_id: int = 1025) -> dict:
+    """Return a random wild pokemon (all generations, up to Gen 9)."""
     pid = random.randint(min_id, max_id)
     return fetch_pokemon(pid)
 
