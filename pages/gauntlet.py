@@ -165,8 +165,9 @@ def _fetch_enemy(player_count: int = 1) -> dict:
     poke = fetch_pokemon(pid)
     poke["level"] = random.randint(30, 60)
     poke["moves"] = fetch_moves(pid)
-    # Double base HP, then scale further by number of players
-    poke["hp"] = poke["hp"] * 2 * max(1, player_count)
+    # HP multiplier: 1 player=×1, 2 players=×1.5, 3 players=×2, 4 players=×2.5 (then doubled base)
+    hp_mult = {1: 1.0, 2: 1.5, 3: 2.0, 4: 2.5}.get(player_count, 1.0)
+    poke["hp"] = max(1, int(poke["hp"] * 2 * hp_mult))
     return poke
 
 
@@ -404,16 +405,17 @@ def _phase_setup():
     <div style="background:rgba(0,0,0,0.3);border:1px solid var(--poke-blue);
         border-radius:10px;padding:1rem;font-size:0.82rem;color:var(--text-muted);margin-bottom:1.2rem;">
         🏟️ <b>Rules:</b><br>
-        • 1–3 trainers team up to face <b>4 random wild Pokémon</b><br>
+        • 1–4 trainers team up to face <b>4 random wild Pokémon</b><br>
+        • Enemy HP scales: ×1 / ×1.5 / ×2 / ×2.5 for 1–4 players (base HP already doubled)<br>
         • Defeat all 4 → face a <b>Legendary Pokémon</b><br>
         • After the run: capture defeated Pokémon (roll <b>11+</b>) or the Legendary (roll <b>16+</b>)<br>
         • If the whole team faints → gauntlet fails (can still capture defeated enemies)<br>
         • Win: all trainers level up <b>×2</b>
     </div>""", unsafe_allow_html=True)
 
-    selected = st.multiselect("Choose trainers (1–3):", _get_trainers(),
+    selected = st.multiselect("Choose trainers (1–4):", _get_trainers(),
                               default=[_get_trainers()[0]], key="gt_trainer_sel",
-                              max_selections=3)
+                              max_selections=4)
     if not selected:
         st.warning("Select at least 1 trainer.")
         return
@@ -648,8 +650,6 @@ def _phase_battle():
 
     # ── Attack buttons ────────────────────────────────────────────────────────
     st.markdown("---")
-    st.markdown("**Your team attacks:**")
-    # alive already computed above
 
     if not alive:
         log.append("💀 All trainers fainted! Gauntlet failed.")
@@ -658,29 +658,30 @@ def _phase_battle():
         st.rerun()
         return
 
-        for trainer in alive:
-            poke   = pokes[trainer]
-            moves  = moves_map[trainer]
-            color  = TRAINER_COLORS.get(trainer, "#888")
-            emoji  = TRAINER_EMOJI.get(trainer, "🎮")
-            spd    = poke.get("speed", "?")
-            st.markdown(
-                f'<div style="border-left:4px solid {color};padding-left:10px;margin:4px 0;">'
-                f'<b>{emoji} {trainer} — {poke["name"]} ⚡{spd}</b></div>',
-                unsafe_allow_html=True
-            )
-            mcols = st.columns(2)
-            for mi, move in enumerate(moves):
-                acc = move.get("accuracy") or 100
-                pwr = move.get("power") or "—"
-                with mcols[mi % 2]:
-                    if st.button(
-                        f"{move['name']} ({move['type'].upper()}, {pwr} pwr, {acc}%)",
-                        key=f"gt_atk_{trainer}_{mi}", use_container_width=True
-                    ):
-                        _do_attack(trainer, poke, move, enemy, enemy_idx,
-                                   enemy_hps, hp_map, alive, pool, log, trainers)
-                        st.rerun()
+    st.markdown("**Your team attacks:**")
+    for trainer in alive:
+        poke   = pokes[trainer]
+        moves  = moves_map[trainer]
+        color  = TRAINER_COLORS.get(trainer, "#888")
+        emoji  = TRAINER_EMOJI.get(trainer, "🎮")
+        spd    = poke.get("speed", "?")
+        st.markdown(
+            f'<div style="border-left:4px solid {color};padding-left:10px;margin:4px 0;">'
+            f'<b>{emoji} {trainer} — {poke["name"]} ⚡{spd}</b></div>',
+            unsafe_allow_html=True
+        )
+        mcols = st.columns(2)
+        for mi, move in enumerate(moves):
+            acc = move.get("accuracy") or 100
+            pwr = move.get("power") or "—"
+            with mcols[mi % 2]:
+                if st.button(
+                    f"{move['name']} ({move['type'].upper()}, {pwr} pwr, {acc}%)",
+                    key=f"gt_atk_{trainer}_{mi}", use_container_width=True
+                ):
+                    _do_attack(trainer, poke, move, enemy, enemy_idx,
+                               enemy_hps, hp_map, alive, pool, log, trainers)
+                    st.rerun()
 
     # ── Enemy move buttons ────────────────────────────────────────────────────
     enemy_moves = enemy.get("moves", [])
