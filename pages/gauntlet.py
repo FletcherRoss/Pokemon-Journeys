@@ -232,7 +232,7 @@ def _enemy_card(poke, hp, max_hp, is_active=False):
         f'<img src="{sprite}" width="72" style="image-rendering:pixelated"/>'
         f'<div style="font-size:0.75rem;font-weight:700;margin:3px 0;">{poke["name"]}</div>'
         f'{types}'
-        f'<div style="font-size:0.6rem;color:var(--text-muted);">Lv.{poke.get("level","?")}</div>'
+        f'<div style="font-size:0.6rem;color:var(--text-muted);">Lv.{poke.get("level","?")} ⚡{poke.get("speed","?")}</div>'
         f'</div>',
         unsafe_allow_html=True
     )
@@ -254,7 +254,9 @@ def _trainer_card(trainer, poke, hp, max_hp):
         f'<div style="font-size:0.62rem;font-weight:700;color:{color};">{emoji} {trainer}</div>'
         f'<img src="{sprite}" width="70" style="image-rendering:pixelated"/>'
         f'<div style="font-size:0.75rem;font-weight:700;margin:3px 0;">{poke["name"]}</div>'
-        f'{types}{faint_t}</div>',
+        f'{types}'
+        f'<div style="font-size:0.6rem;color:var(--text-muted);">Lv.{poke.get("level","?")} ⚡{poke.get("speed","?")}</div>'
+        f'{faint_t}</div>',
         unsafe_allow_html=True
     )
     if not fainted:
@@ -622,11 +624,30 @@ def _phase_battle():
         with col:
             _trainer_card(t, pokes[t], hp_map[t], max_map[t])
 
-    # ── Enemy move table ──────────────────────────────────────────────────────
+    # ── Enemy move table + clickable buttons ─────────────────────────────────
     _enemy_move_table(enemy)
+
+    # ── Speed comparison ──────────────────────────────────────────────────────
+    if alive:
+        first_trainer = alive[0]
+        first_poke    = pokes[first_trainer]
+        my_spd  = first_poke.get("speed", 0)
+        opp_spd = enemy.get("speed", 0)
+        my_col  = "#4CAF50" if my_spd >= opp_spd else "#F44336"
+        opp_col = "#4CAF50" if opp_spd > my_spd else "#F44336"
+        goes_first = first_poke["name"] if my_spd >= opp_spd else enemy["name"]
+        st.markdown(
+            f'<div style="background:rgba(0,0,0,0.2);border:1px solid #333;'
+            f'border-radius:8px;padding:6px 14px;font-size:0.8rem;margin-bottom:8px;">'
+            f'⚡ Speed: <b style="color:{my_col};">{first_poke["name"]} ({my_spd})</b>'
+            f' vs <b style="color:{opp_col};">{enemy["name"]} ({opp_spd})</b>'
+            f' — <b>{goes_first}</b> goes first!</div>',
+            unsafe_allow_html=True
+        )
 
     # ── Attack buttons ────────────────────────────────────────────────────────
     st.markdown("---")
+    st.markdown("**Your team attacks:**")
     alive = [t for t in trainers if hp_map[t] > 0]
 
     if not alive:
@@ -636,27 +657,62 @@ def _phase_battle():
         st.rerun()
         return
 
-    for trainer in alive:
-        poke   = pokes[trainer]
-        moves  = moves_map[trainer]
-        color  = TRAINER_COLORS.get(trainer, "#888")
-        emoji  = TRAINER_EMOJI.get(trainer, "🎮")
-        st.markdown(
-            f'<div style="border-left:4px solid {color};padding-left:10px;margin:4px 0;">'
-            f'<b>{emoji} {trainer} — {poke["name"]}</b></div>',
-            unsafe_allow_html=True
-        )
-        mcols = st.columns(2)
-        for mi, move in enumerate(moves):
+        for trainer in alive:
+            poke   = pokes[trainer]
+            moves  = moves_map[trainer]
+            color  = TRAINER_COLORS.get(trainer, "#888")
+            emoji  = TRAINER_EMOJI.get(trainer, "🎮")
+            spd    = poke.get("speed", "?")
+            st.markdown(
+                f'<div style="border-left:4px solid {color};padding-left:10px;margin:4px 0;">'
+                f'<b>{emoji} {trainer} — {poke["name"]} ⚡{spd}</b></div>',
+                unsafe_allow_html=True
+            )
+            mcols = st.columns(2)
+            for mi, move in enumerate(moves):
+                acc = move.get("accuracy") or 100
+                pwr = move.get("power") or "—"
+                with mcols[mi % 2]:
+                    if st.button(
+                        f"{move['name']} ({move['type'].upper()}, {pwr} pwr, {acc}%)",
+                        key=f"gt_atk_{trainer}_{mi}", use_container_width=True
+                    ):
+                        _do_attack(trainer, poke, move, enemy, enemy_idx,
+                                   enemy_hps, hp_map, alive, pool, log, trainers)
+                        st.rerun()
+
+    # ── Enemy move buttons ────────────────────────────────────────────────────
+    enemy_moves = enemy.get("moves", [])
+    opp_spd     = enemy.get("speed", "?")
+    if enemy_moves and enemy_hps[enemy_idx] > 0:
+        st.markdown(f"**{enemy['name']} ⚡{opp_spd} — select their move:**")
+        emcols = st.columns(2)
+        for mi, move in enumerate(enemy_moves):
             acc = move.get("accuracy") or 100
             pwr = move.get("power") or "—"
-            with mcols[mi % 2]:
+            with emcols[mi % 2]:
                 if st.button(
                     f"{move['name']} ({move['type'].upper()}, {pwr} pwr, {acc}%)",
-                    key=f"gt_atk_{trainer}_{mi}", use_container_width=True
+                    key=f"gt_enemy_move_{enemy_idx}_{mi}", use_container_width=True
                 ):
-                    _do_attack(trainer, poke, move, enemy, enemy_idx,
-                               enemy_hps, hp_map, alive, pool, log, trainers)
+                    # Enemy attacks a random alive trainer
+                    if alive:
+                        target = random.choice(alive)
+                        tpoke  = pokes[target]
+                        from utils.game_state import damage_calc
+                        opp_dmg, opp_hit = damage_calc(enemy, tpoke, move, enemy.get("level", 40))
+                        if not opp_hit:
+                            log.append(f"➤ {enemy['name']} used {move['name']}... missed!")
+                        else:
+                            hp_map[target] = max(0, hp_map[target] - opp_dmg)
+                            st.session_state.gt_trainer_hp = hp_map
+                            log.append(f"➤ {enemy['name']} used {move['name']} on {target}'s {tpoke['name']}! ({opp_dmg} dmg)")
+                            if hp_map[target] <= 0:
+                                log.append(f"💀 {target}'s {tpoke['name']} fainted!")
+                                if all(hp_map[t] <= 0 for t in trainers):
+                                    log.append("💀 All trainers fainted! Gauntlet failed.")
+                                    st.session_state.gt_phase = "result"
+                    st.session_state.gt_log = log[-40:]
                     st.rerun()
 
     # ── HP sliders ────────────────────────────────────────────────────────────
