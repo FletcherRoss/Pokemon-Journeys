@@ -579,6 +579,7 @@ def _phase_battle():
     enemy_idx  = st.session_state.gt_enemy_idx
     log        = st.session_state.gt_log
     enemy      = pool[enemy_idx]
+    alive      = [t for t in trainers if hp_map.get(t, 0) > 0]
 
     st.markdown(f"### ⚔️ Gauntlet — Round {enemy_idx+1} of {GAUNTLET_SIZE}")
 
@@ -648,7 +649,7 @@ def _phase_battle():
     # ── Attack buttons ────────────────────────────────────────────────────────
     st.markdown("---")
     st.markdown("**Your team attacks:**")
-    alive = [t for t in trainers if hp_map[t] > 0]
+    # alive already computed above
 
     if not alive:
         log.append("💀 All trainers fainted! Gauntlet failed.")
