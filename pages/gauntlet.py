@@ -165,8 +165,8 @@ def _fetch_enemy(player_count: int = 1) -> dict:
     poke = fetch_pokemon(pid)
     poke["level"] = random.randint(30, 60)
     poke["moves"] = fetch_moves(pid)
-    # Scale HP by number of players
-    poke["hp"]    = poke["hp"] * max(1, player_count)
+    # Double base HP, then scale further by number of players
+    poke["hp"] = poke["hp"] * 2 * max(1, player_count)
     return poke
 
 
