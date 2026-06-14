@@ -557,43 +557,26 @@ def render():
             st.session_state.battle_log.append(f"🔄 Switched active Pokémon to {other_name}!")
             st.rerun()
 
-    # ── Move table for active gym Pokémon ─────────────────────────────────────
-    if opp_active_idx < len(opp_team):
-        active_opp   = opp_team[opp_active_idx]
-        active_opp_moves = st.session_state.gym_leader_moves[opp_active_idx]
-        if isinstance(active_opp_moves, list) and active_opp_moves:
-            move_rows = ""
-            for m in active_opp_moves:
-                tc    = TYPE_COLORS.get(m.get("type","normal"), "#888")
-                pwr   = m.get("power") or 0
-                pwr_s = f"{'💥 ' if pwr>=80 else ''}{pwr or '—'}"
-                pwr_c = "#F44336" if pwr>=80 else "#FFC107" if pwr>=50 else "#aaa"
-                acc   = m.get("accuracy") or 100
-                acc_c = "#4CAF50" if acc>=90 else "#FFC107" if acc>=70 else "#F44336"
-                move_rows += (
-                    f'<tr><td style="padding:3px 10px;font-weight:600;">{m["name"]}</td>'
-                    f'<td style="padding:3px 8px;"><span class="type-badge" style="background:{tc};">{m.get("type","normal")}</span></td>'
-                    f'<td style="padding:3px 8px;color:{pwr_c};">{pwr_s} pwr</td>'
-                    f'<td style="padding:3px 8px;color:{acc_c};">{acc}%</td>'
-                    f'<td style="padding:3px 8px;color:var(--text-muted);">{m.get("pp","?")} PP</td></tr>'
-                )
-            st.markdown(
-                f'<div style="margin:0.5rem 0 0.8rem 0;">'
-                f'<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:4px;'
-                f'text-transform:uppercase;letter-spacing:1px;">{active_opp["name"]}\'s moves</div>'
-                f'<table style="width:100%;border-collapse:collapse;background:rgba(0,0,0,0.25);'
-                f'border:1px solid var(--poke-blue);border-radius:8px;font-size:0.8rem;">'
-                f'<thead><tr style="color:var(--text-muted);font-size:0.7rem;border-bottom:1px solid rgba(255,255,255,0.08);">'
-                f'<th style="padding:4px 10px;text-align:left;">Move</th>'
-                f'<th style="padding:4px 8px;text-align:left;">Type</th>'
-                f'<th style="padding:4px 8px;text-align:left;">Power</th>'
-                f'<th style="padding:4px 8px;text-align:left;">Acc</th>'
-                f'<th style="padding:4px 8px;text-align:left;">PP</th>'
-                f'</tr></thead><tbody>{move_rows}</tbody></table></div>',
-                unsafe_allow_html=True
-            )
+    # ── Speed comparison banner ───────────────────────────────────────────────
+    if my_team and opp_team and opp_active_idx < len(opp_team) and my_active_idx < len(my_team):
+        active_my  = my_team[my_active_idx]
+        active_opp = opp_team[opp_active_idx]
+        my_spd     = active_my.get("speed", 0)
+        opp_spd    = active_opp.get("speed", 0)
+        my_spd_col  = "#4CAF50" if my_spd >= opp_spd else "#F44336"
+        opp_spd_col = "#4CAF50" if opp_spd > my_spd else "#F44336"
+        goes_first  = active_my["name"] if my_spd >= opp_spd else active_opp["name"]
+        st.markdown(
+            f'<div style="background:rgba(0,0,0,0.2);border:1px solid #333;'
+            f'border-radius:8px;padding:6px 14px;font-size:0.8rem;margin-bottom:8px;">'
+            f'⚡ Speed: <b style="color:{my_spd_col};">{active_my["name"]} ({my_spd})</b>'
+            f' vs <b style="color:{opp_spd_col};">{active_opp["name"]} ({opp_spd})</b>'
+            f' — <b>{goes_first}</b> goes first!'
+            f'</div>',
+            unsafe_allow_html=True
+        )
 
-    # ── Move buttons — 2 sets (one per trainer Pokémon) ───────────────────────
+    # ── Move buttons — your Pokémon ───────────────────────────────────────────
     st.markdown("---")
     for pi in range(2):
         if pi >= len(my_team):
@@ -604,7 +587,8 @@ def render():
         if hp <= 0:
             st.markdown(f"~~{poke['name']}~~ 💀 fainted")
             continue
-        active_label = " (active)" if is_active else ""
+        spd = poke.get("speed", "?")
+        active_label = f" 🟢 active · ⚡{spd}" if is_active else f" · ⚡{spd}"
         st.markdown(f"**{poke['name']}{active_label} — choose move:**")
         moves = st.session_state.gym_my_moves_list[pi] if st.session_state.gym_my_moves_list else []
         mcols = st.columns(2)
@@ -614,10 +598,48 @@ def render():
             with mcols[mi % 2]:
                 if st.button(label, key=f"gym_move_{pi}_{mi}", use_container_width=True):
                     _gym_attack(move, pi)
-                    # Set this Pokémon as active after it attacks
                     if my_hps[pi] > 0:
                         st.session_state.gym_my_active = pi
                     st.rerun()
+
+    # ── Move buttons — gym leader's active Pokémon ───────────────────────────
+    if opp_active_idx < len(opp_team):
+        active_opp       = opp_team[opp_active_idx]
+        active_opp_moves = st.session_state.gym_leader_moves[opp_active_idx]
+        opp_spd          = active_opp.get("speed", "?")
+        if isinstance(active_opp_moves, list) and active_opp_moves:
+            st.markdown(f"**{active_opp['name']} 🔴 gym · ⚡{opp_spd} — select their move:**")
+            opp_mcols = st.columns(2)
+            for mi, move in enumerate(active_opp_moves):
+                acc   = move.get("accuracy") or 100
+                pwr   = move.get("power") or "—"
+                label = f"{move['name']} ({move['type'].upper()}, {pwr} pwr, {acc}%)"
+                with opp_mcols[mi % 2]:
+                    if st.button(label, key=f"gym_opp_move_{opp_active_idx}_{mi}",
+                                 use_container_width=True):
+                        target_idx = st.session_state.gym_my_active
+                        target     = my_team[target_idx]
+                        opp_dmg, opp_hit = damage_calc(active_opp, target, move, 50)
+                        log = st.session_state.battle_log
+                        if not opp_hit:
+                            log.append(f"➤ {active_opp['name']} used {move['name']}... missed!")
+                        else:
+                            my_hps[target_idx] = max(0, my_hps[target_idx] - opp_dmg)
+                            st.session_state.gym_my_hp = my_hps
+                            log.append(f"➤ {active_opp['name']} used {move['name']} on {target['name']}! ({opp_dmg} dmg)")
+                            if my_hps[target_idx] <= 0:
+                                log.append(f"💀 {target['name']} fainted!")
+                                if all(h <= 0 for h in my_hps):
+                                    log.append("💀 All your Pokémon fainted!")
+                                    st.session_state.battle_result = "lose"
+                                    st.session_state.battle_active = False
+                                else:
+                                    surviving = next(i for i, h in enumerate(my_hps) if h > 0)
+                                    st.session_state.gym_my_active = surviving
+                                    log.append(f"🔄 {my_team[surviving]['name']} is now active!")
+                        st.session_state.battle_log = log[-30:]
+                        st.rerun()
+
 
     # ── Manual HP sliders ─────────────────────────────────────────────────────
     st.markdown("---")
