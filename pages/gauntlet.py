@@ -171,11 +171,14 @@ def _fetch_enemy(player_count: int = 1) -> dict:
     return poke
 
 
-def _fetch_legendary() -> dict:
+def _fetch_legendary(player_count: int = 1) -> dict:
     lid  = random.choice(ALL_LEGENDARY_IDS)
     poke = fetch_pokemon(lid)
     poke["level"] = 70
     poke["moves"] = fetch_moves(lid)
+    # Same HP multiplier as regular enemies
+    hp_mult = {1: 1.0, 2: 1.5, 3: 2.0, 4: 2.5}.get(player_count, 1.0)
+    poke["hp"] = max(1, int(poke["hp"] * 2 * hp_mult))
     return poke
 
 
@@ -813,7 +816,7 @@ def _on_enemy_faint(enemy_idx, enemy, pool, enemy_hps, log, trainers):
     if next_idx >= GAUNTLET_SIZE:
         log.append("🏆 All 4 enemies defeated! Summoning a Legendary...")
         with st.spinner("Summoning the Legendary..."):
-            legendary = _fetch_legendary()
+            legendary = _fetch_legendary(len(trainers))
         st.session_state.gt_legendary    = legendary
         st.session_state.gt_legendary_hp = legendary["hp"]
         st.session_state.gt_phase        = "legendary"
@@ -895,16 +898,34 @@ def _phase_legendary():
     # Move table
     _enemy_move_table(legendary)
 
-    # Attack buttons
+    # ── Speed comparison ──────────────────────────────────────────────────────
+    if alive:
+        first_poke = pokes[alive[0]]
+        my_spd  = first_poke.get("speed", 0)
+        leg_spd = legendary.get("speed", 0)
+        my_col  = "#4CAF50" if my_spd >= leg_spd else "#F44336"
+        leg_col = "#4CAF50" if leg_spd > my_spd  else "#F44336"
+        goes_first = first_poke["name"] if my_spd >= leg_spd else legendary["name"]
+        st.markdown(
+            f'<div style="background:rgba(0,0,0,0.2);border:1px solid #333;'
+            f'border-radius:8px;padding:6px 14px;font-size:0.8rem;margin-bottom:8px;">'
+            f'⚡ Speed: <b style="color:{my_col};">{first_poke["name"]} ({my_spd})</b>'
+            f' vs <b style="color:{leg_col};">{legendary["name"]} ({leg_spd})</b>'
+            f' — <b>{goes_first}</b> goes first!</div>',
+            unsafe_allow_html=True
+        )
+
+    # ── Trainer attack buttons ────────────────────────────────────────────────
     st.markdown("---")
     for trainer in alive:
         poke  = pokes[trainer]
         moves = moves_map[trainer]
         color = TRAINER_COLORS.get(trainer, "#888")
         emoji = TRAINER_EMOJI.get(trainer, "🎮")
+        spd   = poke.get("speed", "?")
         st.markdown(
             f'<div style="border-left:4px solid {color};padding-left:10px;margin:4px 0;">'
-            f'<b>{emoji} {trainer} — {poke["name"]}</b></div>',
+            f'<b>{emoji} {trainer} — {poke["name"]} ⚡{spd}</b></div>',
             unsafe_allow_html=True
         )
         mcols = st.columns(2)
@@ -913,29 +934,43 @@ def _phase_legendary():
             pwr = move.get("power") or "—"
             with mcols[mi % 2]:
                 if st.button(
-                    f"{move['name']} ({pwr} pwr, {acc}%)",
+                    f"{move['name']} ({move['type'].upper()}, {pwr} pwr, {acc}%)",
                     key=f"gt_leg_{trainer}_{mi}", use_container_width=True
                 ):
-                    dmg, hit = damage_calc(poke, legendary, move, poke.get("level",5))
+                    dmg, hit = damage_calc(poke, legendary, move, poke.get("level", 5))
                     if not hit:
                         log.append(f"➤ {poke['name']} used {move['name']}... missed!")
                     else:
                         st.session_state.gt_legendary_hp = max(0, leg_hp - dmg)
                         log.append(f"➤ {poke['name']} used {move['name']}! ({dmg} dmg)")
-                    # Counter
-                    leg_moves = legendary.get("moves") or []
-                    if st.session_state.gt_legendary_hp > 0 and leg_moves:
+                    st.session_state.gt_log = log[-40:]
+                    st.rerun()
+
+    # ── Legendary move buttons ────────────────────────────────────────────────
+    leg_moves = legendary.get("moves") or []
+    leg_spd   = legendary.get("speed", "?")
+    if leg_moves and leg_hp > 0:
+        st.markdown(f"**{legendary['name']} ⚡{leg_spd} — select their move:**")
+        lmcols = st.columns(2)
+        for mi, move in enumerate(leg_moves):
+            acc = move.get("accuracy") or 100
+            pwr = move.get("power") or "—"
+            with lmcols[mi % 2]:
+                if st.button(
+                    f"{move['name']} ({move['type'].upper()}, {pwr} pwr, {acc}%)",
+                    key=f"gt_leg_opp_{mi}", use_container_width=True
+                ):
+                    if alive:
                         target   = random.choice(alive)
-                        opp_move = random.choice(leg_moves)
-                        opp_dmg, opp_hit = damage_calc(legendary, pokes[target], opp_move, 70)
+                        opp_dmg, opp_hit = damage_calc(legendary, pokes[target], move, 70)
                         if not opp_hit:
-                            log.append(f"➤ {legendary['name']} used {opp_move['name']}... missed!")
+                            log.append(f"➤ {legendary['name']} used {move['name']}... missed!")
                         else:
                             hp_map[target] = max(0, hp_map[target] - opp_dmg)
-                            log.append(f"➤ {legendary['name']} hit {target}! ({opp_dmg} dmg)")
+                            st.session_state.gt_trainer_hp = hp_map
+                            log.append(f"➤ {legendary['name']} hit {target}'s {pokes[target]['name']}! ({opp_dmg} dmg)")
                             if hp_map[target] <= 0:
                                 log.append(f"💀 {target}'s {pokes[target]['name']} fainted!")
-                        st.session_state.gt_trainer_hp = hp_map
                     st.session_state.gt_log = log[-40:]
                     st.rerun()
 
