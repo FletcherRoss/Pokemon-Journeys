@@ -476,45 +476,44 @@ def _starter_levelup_card(trainer: str, teams_df: pd.DataFrame):
 # ── Captured Pokémon grid ─────────────────────────────────────────────────────
 
 def _captures_levelup_grid(trainer: str, captures_df: pd.DataFrame):
-    trainer_caps = captures_df[captures_df["trainer"] == trainer]
+    # Only show active captures (active == 1) — benched pokemon managed in Team Management tab
+    all_caps     = captures_df[captures_df["trainer"] == trainer].copy()
+    if "active" not in all_caps.columns:
+        all_caps["active"] = 1
+    def _to_int(v):
+        try: return int(float(v))
+        except: return 1
+    all_caps["active"] = all_caps["active"].apply(_to_int)
+    trainer_caps = all_caps[all_caps["active"] == 1]
 
     if trainer_caps.empty:
-        st.markdown("_No Pokémon captured yet._")
+        st.markdown("_No active Pokémon. Activate some in the Team Management section above._")
         return
 
-    st.markdown(f"**{len(trainer_caps)} Pokémon caught**")
+    st.markdown(f"**{len(trainer_caps)} active Pokémon**")
 
     cols_per_row = 3
-    indices = list(trainer_caps.index)
+    indices      = list(trainer_caps.index)
 
-    move_expanders = []  # collect (poke_id, name, current_moves, cap_idx) to render below grid
+    move_expanders = []  # collect (poke_id, name, current_moves, cap_idx)
 
     for row_start in range(0, len(indices), cols_per_row):
         chunk_idx = indices[row_start:row_start + cols_per_row]
         cols = st.columns(cols_per_row)
 
         for col, cap_idx in zip(cols, chunk_idx):
-            cap    = captures_df.loc[cap_idx]
-            cur_lv = _safe_int(cap.get("current_level") or cap.get("level_caught"), 5)
+            cap     = captures_df.loc[cap_idx]
+            cur_lv  = _safe_int(cap.get("current_level") or cap.get("level_caught"), 5)
             poke_id = _safe_int(cap["pokemon_id"])
             name    = cap["pokemon_name"]
             sprite  = _sprite(poke_id)
             types   = _type_pills(cap.get("types", "normal"))
             color   = TRAINER_COLORS.get(trainer, "#888")
             current_moves = get_moveset(trainer, poke_id)
-            evo_ok, evo_reason = can_evolve_preview(poke_id, cur_lv)
+            moves_names   = ' · '.join(m['name'] for m in current_moves) if current_moves else 'No moves set'
+            moves_line    = f'<div style="font-size:0.6rem;color:#a0a8c0;margin-top:3px;">⚔ {moves_names}</div>'
 
             with col:
-                if evo_ok:
-                    evo_badge = f'<div style="font-size:0.65rem;color:#FFCB05;margin-top:2px;">&#10024; {evo_reason}</div>'
-                elif evo_reason not in ("No evolution",):
-                    evo_badge = f'<div style="font-size:0.65rem;color:#a0a8c0;margin-top:2px;">{evo_reason}</div>'
-                else:
-                    evo_badge = ""
-
-                moves_names = ' &middot; '.join(m['name'] for m in current_moves) if current_moves else 'No moves set'
-                moves_line  = f'<div style="font-size:0.6rem;color:#a0a8c0;margin-top:3px;">&#9876; {moves_names}</div>'
-
                 st.markdown(
                     '<div class="pokemon-card" style="cursor:default;padding:0.9rem 0.6rem;margin-bottom:4px;">'
                     f'<img src="{sprite}" width="75" style="image-rendering:pixelated"/>'
@@ -522,12 +521,11 @@ def _captures_levelup_grid(trainer: str, captures_df: pd.DataFrame):
                     f'<div style="margin-bottom:4px;">{types}</div>'
                     f'<span style="background:#0f3460;border:1px solid {color};'
                     f'border-radius:20px;padding:2px 10px;font-size:0.8rem;font-weight:700;">Lv. {cur_lv}</span>'
-                    + evo_badge + moves_line +
+                    + moves_line +
                     '</div>',
                     unsafe_allow_html=True
                 )
-
-                if st.button("⬆️", key=f"lvlup_cap_{trainer}_{cap_idx}",
+                if st.button("⬆️ Level Up", key=f"lvlup_cap_{trainer}_{cap_idx}",
                              use_container_width=True, help=f"Level up {name}"):
                     _, evolved = level_up_and_check_evolve(cap_idx)
                     if evolved:
