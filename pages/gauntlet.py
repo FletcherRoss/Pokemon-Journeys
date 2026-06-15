@@ -794,21 +794,6 @@ def _do_attack(trainer, poke, move, enemy, enemy_idx,
         log.append(f"➤ {poke['name']} used {move['name']}! ({dmg} dmg{mod_tag})")
     st.session_state.gt_enemy_hp = enemy_hps
 
-    if enemy_hps[enemy_idx] > 0:
-        # Counter-attack random alive trainer
-        emoves = enemy.get("moves") or [{"name":"Tackle","power":40,"type":"normal","accuracy":100,"pp":35}]
-        target   = random.choice(alive)
-        opp_move = random.choice(emoves)
-        opp_dmg, opp_hit = damage_calc(enemy, st.session_state.gt_trainer_poke[target], opp_move, enemy.get("level",40))
-        if not opp_hit:
-            log.append(f"➤ {enemy['name']} used {opp_move['name']}... missed!")
-        else:
-            hp_map[target] = max(0, hp_map[target] - opp_dmg)
-            log.append(f"➤ {enemy['name']} hit {target}'s {st.session_state.gt_trainer_poke[target]['name']}! ({opp_dmg} dmg)")
-            if hp_map[target] <= 0:
-                log.append(f"💀 {target}'s {st.session_state.gt_trainer_poke[target]['name']} fainted!")
-        st.session_state.gt_trainer_hp = hp_map
-
     if enemy_hps[enemy_idx] <= 0:
         st.session_state.gt_active_modifier = None
         _on_enemy_faint(enemy_idx, enemy, pool, enemy_hps, log, trainers)
