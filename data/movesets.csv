@@ -1,8 +1,4 @@
 trainer,pokemon_id,pokemon_name,slot,move_name,move_type,power,accuracy,pp
-Raelynn,257,Blaziken,1,Blaze Kick,fire,85,90,10
-Raelynn,257,Blaziken,2,Double Team,normal,0,100,15
-Raelynn,257,Blaziken,3,Dual Chop,dragon,40,90,15
-Raelynn,257,Blaziken,4,Flare Blitz,fire,120,100,15
 Addy,464,Rhyperior,1,Brick Break,fighting,75,100,15
 Addy,464,Rhyperior,2,Earthquake,ground,100,100,10
 Addy,464,Rhyperior,3,Dragon Rush,dragon,100,75,10
@@ -71,3 +67,7 @@ Dad,6,Charizard,1,Dragon Pulse,dragon,85,100,10
 Dad,6,Charizard,2,Flare Blitz,fire,120,100,15
 Dad,6,Charizard,3,Flamethrower,fire,90,100,15
 Dad,6,Charizard,4,Skull Bash,normal,130,100,10
+Raelynn,257,Blaziken,1,Blaze Kick,fire,85,90,10
+Raelynn,257,Blaziken,2,Dual Chop,dragon,40,90,15
+Raelynn,257,Blaziken,3,Flare Blitz,fire,120,100,15
+Raelynn,257,Blaziken,4,Aura Sphere,fighting,80,100,20
