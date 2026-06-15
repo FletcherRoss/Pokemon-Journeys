@@ -570,44 +570,25 @@ def render():
         _show_pokemon_card(opp, st.session_state.opponent_current_hp,
                            "Wild Pokémon", animated=True)
 
-    # ── Wild Pokémon move stats ───────────────────────────────────────────────
-    opp_moves = st.session_state.opponent_moves or []
-    if opp_moves:
-        move_rows = "".join(
-            f"""<tr>
-                <td style="padding:3px 10px;font-weight:600;">{m['name']}</td>
-                <td style="padding:3px 8px;">
-                    <span class="type-badge" style="background:{TYPE_COLORS.get(m['type'],'#888')};">
-                        {m['type']}</span></td>
-                <td style="padding:3px 8px;color:{'#F44336' if (m['power'] or 0)>=80 else '#FFC107' if (m['power'] or 0)>=50 else '#aaa'};">
-                    {'💥 ' if (m['power'] or 0)>=80 else ''}{m['power'] or '—'} pwr</td>
-                <td style="padding:3px 8px;color:{'#4CAF50' if (m.get('accuracy') or 100)>=90 else '#FFC107' if (m.get('accuracy') or 100)>=70 else '#F44336'};">
-                    {m.get('accuracy') or 100}%</td>
-                <td style="padding:3px 8px;color:var(--text-muted);">{m['pp']} PP</td>
-            </tr>"""
-            for m in opp_moves
-        )
-        st.markdown(f"""
-        <div style="margin:0.5rem 0 1rem 0;">
-            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:4px;
-                        letter-spacing:1px;text-transform:uppercase;">{opp['name']}'s moves</div>
-            <table style="width:100%;border-collapse:collapse;background:rgba(0,0,0,0.25);
-                          border:1px solid var(--poke-blue);border-radius:8px;font-size:0.8rem;">
-                <thead><tr style="color:var(--text-muted);font-size:0.7rem;
-                                   border-bottom:1px solid rgba(255,255,255,0.08);">
-                    <th style="padding:4px 10px;text-align:left;">Move</th>
-                    <th style="padding:4px 8px;text-align:left;">Type</th>
-                    <th style="padding:4px 8px;text-align:left;">Power</th>
-                    <th style="padding:4px 8px;text-align:left;">Acc</th>
-                    <th style="padding:4px 8px;text-align:left;">PP</th>
-                </tr></thead>
-                <tbody>{move_rows}</tbody>
-            </table>
-        </div>""", unsafe_allow_html=True)
+    # ── Speed comparison ──────────────────────────────────────────────────────
+    my_spd  = my.get("speed", 0)
+    opp_spd = opp.get("speed", 0)
+    my_spd_col  = "#4CAF50" if my_spd >= opp_spd else "#F44336"
+    opp_spd_col = "#4CAF50" if opp_spd > my_spd  else "#F44336"
+    goes_first  = my["name"] if my_spd >= opp_spd else opp["name"]
+    st.markdown(
+        f'<div style="background:rgba(0,0,0,0.2);border:1px solid #333;'
+        f'border-radius:8px;padding:6px 14px;font-size:0.8rem;margin-bottom:8px;">'
+        f'⚡ Speed: <b style="color:{my_spd_col};">{my["name"]} ({my_spd})</b>'
+        f' vs <b style="color:{opp_spd_col};">{opp["name"]} ({opp_spd})</b>'
+        f' — <b>{goes_first}</b> goes first!</div>',
+        unsafe_allow_html=True
+    )
 
     # ── Your moves ────────────────────────────────────────────────────────────
     st.markdown("---")
-    st.markdown("#### Choose your move:")
+    my_spd_label = f" ⚡{my_spd}" if my_spd else ""
+    st.markdown(f"#### {my['name']}{my_spd_label} — choose your move:")
     move_cols = st.columns(2)
     moves = st.session_state.my_moves or []
     for i, move in enumerate(moves):
@@ -617,6 +598,35 @@ def render():
             if st.button(label, key=f"move_{i}", use_container_width=True):
                 _player_attack(move)
                 st.rerun()
+
+    # ── Wild Pokémon move buttons ─────────────────────────────────────────────
+    opp_moves = st.session_state.opponent_moves or []
+    if opp_moves:
+        opp_spd_label = f" ⚡{opp_spd}" if opp_spd else ""
+        st.markdown(f"#### {opp['name']}{opp_spd_label} — select their move:")
+        opp_move_cols = st.columns(2)
+        for i, move in enumerate(opp_moves):
+            with opp_move_cols[i % 2]:
+                acc   = move.get("accuracy") or 100
+                pwr   = move.get("power") or "—"
+                label = f"{move['name']} ({move['type'].upper()}, {pwr} pwr, {acc}% acc)"
+                if st.button(label, key=f"opp_move_{i}", use_container_width=True):
+                    # Wild pokemon attacks the trainer
+                    dmg, hit = damage_calc(opp, my, move, opp.get("level", 5))
+                    log = st.session_state.battle_log
+                    if not hit:
+                        log.append(f"➤ Wild {opp['name']} used {move['name']}... missed! ({acc}% acc)")
+                    else:
+                        st.session_state.my_current_hp = max(0, st.session_state.my_current_hp - dmg)
+                        log.append(f"➤ Wild {opp['name']} used {move['name']}! ({dmg} dmg)")
+                        if st.session_state.my_current_hp <= 0:
+                            log.append(f"💀 {my['name']} fainted!")
+                            st.session_state.battle_log  = log[-20:]
+                            st.session_state.battle_result = "lose"
+                            st.session_state.battle_active = False
+                            _record_result("lose")
+                    st.session_state.battle_log = log[-20:]
+                    st.rerun()
 
     # ── Switch Pokémon ────────────────────────────────────────────────────────
     _render_team_switcher(trainer)
