@@ -63,3 +63,7 @@ Dad,4,Charmander,1,Ember,fire,40,100,25
 Dad,4,Charmander,2,Slash,normal,70,100,20
 Dad,4,Charmander,3,Shadow Claw,ghost,70,100,15
 Dad,4,Charmander,4,Flamethrower,fire,90,100,15
+Dad,443,Gible,1,Body Slam,normal,85,100,15
+Dad,443,Gible,2,Dragon Claw,dragon,80,100,15
+Dad,443,Gible,3,Earthquake,ground,100,100,10
+Dad,443,Gible,4,Thunder Fang,electric,65,95,15
