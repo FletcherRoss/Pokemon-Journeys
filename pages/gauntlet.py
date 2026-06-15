@@ -1049,13 +1049,16 @@ def _phase_capture():
     if trainer_idx >= len(trainers):
         caught = [n for n, r in results.items() if r == "caught"]
         st.markdown("### 🎉 Capture Summary")
-        if caught:
-            st.success(f"Caught: **{', '.join(caught)}**!")
-            for entry in available:
-                poke = entry["poke"]
-                if results.get(poke["name"]) == "caught":
-                    for t in trainers:
-                        add_capture(t, poke, poke.get("level", 5))
+        caught_by = {t: r["poke"] for t, r in results.items()
+                     if isinstance(r, dict) and r.get("result") == "caught"}
+        if caught_by:
+            poke_lookup = {entry["poke"]["name"]: entry["poke"] for entry in available}
+            summary = ", ".join(f"{t}: {p}" for t, p in caught_by.items())
+            st.success(f"Caught: {summary}!")
+            for t, poke_name in caught_by.items():
+                poke = poke_lookup.get(poke_name)
+                if poke:
+                    add_capture(t, poke, poke.get("level", 5))
         else:
             st.info("No Pokémon were caught this run.")
         if st.button("🏁 Finish Gauntlet", use_container_width=True):
@@ -1092,7 +1095,7 @@ def _phase_capture():
                 types_html = " ".join(type_badge_html(t) for t in poke["types"])
                 border = "2px solid #7038F8" if is_leg else "2px solid var(--poke-blue)"
                 leg_tag = '<div style="font-size:0.6rem;color:#7038F8;font-weight:700;">✨ LEGENDARY</div>' if is_leg else ""
-                already_caught = results.get(poke["name"]) == "caught"
+                already_caught = any(isinstance(r, dict) and r.get("poke") == poke["name"] and r.get("result") == "caught" for r in results.values())
                 with col:
                     caught_tag = '<div style="font-size:0.65rem;color:#4CAF50;">✅ Already caught!</div>' if already_caught else ""
                     st.markdown(
@@ -1194,7 +1197,8 @@ def _phase_capture():
         return
 
     # Result is in — show outcome, then auto-advance to next trainer
-    results[poke["name"]] = roll_res
+    # Store result keyed by trainer so each trainer only adds to their own team
+    results[trainer] = {"poke": poke["name"], "result": roll_res}
     st.session_state.gt_capture_results = results
 
     if roll_res == "caught":
