@@ -527,7 +527,7 @@ def _captures_levelup_grid(trainer: str, captures_df: pd.DataFrame):
                     unsafe_allow_html=True
                 )
 
-                if st.button("⬆️", key=f"lvlup_cap_{cap_idx}",
+                if st.button("⬆️", key=f"lvlup_cap_{trainer}_{cap_idx}",
                              use_container_width=True, help=f"Level up {name}"):
                     _, evolved = level_up_and_check_evolve(cap_idx)
                     if evolved:
@@ -544,7 +544,7 @@ def _captures_levelup_grid(trainer: str, captures_df: pd.DataFrame):
     st.markdown("##### ⚔️ Edit Movesets")
     for poke_id, name, current_moves, cap_idx in move_expanders:
         with st.expander(f"⚔️ {name}'s moves", expanded=False):
-            _move_selector(trainer, poke_id, name, current_moves, f"cap_{cap_idx}")
+            _move_selector(trainer, poke_id, name, current_moves, f"{trainer}_{cap_idx}")
 
 
 # ── Main render ───────────────────────────────────────────────────────────────
