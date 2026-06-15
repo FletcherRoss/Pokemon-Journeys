@@ -227,37 +227,14 @@ def _player_attack(move: dict):
     opp = st.session_state.opponent_pokemon
     log = st.session_state.battle_log
 
-    # Determine turn order based on speed
-    player_first, my_spd, opp_spd = speed_order(my, opp)
-    if my_spd == opp_spd:
-        log.append(f"⚡ Equal speed ({my_spd}) — turn order randomised!")
-    elif player_first:
-        log.append(f"⚡ {my['name']} is faster ({my_spd} vs {opp_spd}) — you go first!")
+    dmg, hit = damage_calc(my, opp, move, st.session_state.my_level)
+    if not hit:
+        log.append(f"➤ {my['name']} used {move['name']}... but it missed! (Acc:{move.get('accuracy',100)}%)")
     else:
-        log.append(f"⚡ {opp['name']} is faster ({opp_spd} vs {my_spd}) — opponent goes first!")
-
-    def do_player_turn():
-        dmg, hit = damage_calc(my, opp, move, st.session_state.my_level)
-        if not hit:
-            log.append(f"➤ {my['name']} used {move['name']}... but it missed! (Acc:{move.get('accuracy',100)}%)")
-            return False
         st.session_state.opponent_current_hp = max(0, st.session_state.opponent_current_hp - dmg)
         log.append(f"➤ {my['name']} used {move['name']}! ({dmg} dmg, Acc:{move.get('accuracy',100)}%)")
-        return st.session_state.opponent_current_hp <= 0
 
-    def do_opp_turn():
-        opp_move = random.choice(st.session_state.opponent_moves)
-        opp_dmg, opp_hit = damage_calc(opp, my, opp_move)
-        if not opp_hit:
-            log.append(f"➤ {opp['name']} used {opp_move['name']}... but it missed! (Acc:{opp_move.get('accuracy',100)}%)")
-            return False
-        st.session_state.my_current_hp = max(0, st.session_state.my_current_hp - opp_dmg)
-        log.append(f"➤ {opp['name']} used {opp_move['name']}! ({opp_dmg} dmg, Acc:{opp_move.get('accuracy',100)}%)")
-        return st.session_state.my_current_hp <= 0
-
-    if player_first:
-        opp_fainted = do_player_turn()
-        if opp_fainted:
+        if st.session_state.opponent_current_hp <= 0:
             xp_gain = random.randint(15, 35)
             st.session_state.my_xp += xp_gain
             leveled = level_up_check()
@@ -267,35 +244,7 @@ def _player_attack(move: dict):
             st.session_state.battle_result = "win"
             st.session_state.battle_active = False
             _record_result("win")
-            st.session_state.battle_log = log[-20:]
-            return
-        my_fainted = do_opp_turn()
-    else:
-        my_fainted = do_opp_turn()
-        if not my_fainted:
-            opp_fainted = do_player_turn()
-            if opp_fainted:
-                xp_gain = random.randint(15, 35)
-                st.session_state.my_xp += xp_gain
-                leveled = level_up_check()
-                log.append(f"💥 Wild {opp['name']} fainted! +{xp_gain} XP")
-                if leveled:
-                    log.append(f"⬆️ {my['name']} grew to level {st.session_state.my_level}!")
-                st.session_state.battle_result = "win"
-                st.session_state.battle_active = False
-                _record_result("win")
-                st.session_state.battle_log = log[-20:]
-                return
-        else:
-            my_fainted = True
 
-    if my_fainted or st.session_state.my_current_hp <= 0:
-        log.append(f"💀 {my['name']} fainted...")
-        st.session_state.battle_result = "lose"
-        st.session_state.battle_active = False
-        _record_result("lose")
-
-    st.session_state.battle_turn += 1
     st.session_state.battle_log = log[-20:]
 
 
