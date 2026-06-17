@@ -1,8 +1,8 @@
-trainer,starter,starter_id,level,wins,losses,badges,badge_rock,badge_grass,badge_water,badge_fire,badge_psychic,badge_normal,badge_ice,badge_elite,evolutions,selected_moves,master_balls
-Addy,Meganium,154.0,36,29,12,3,1,1,1,0,0,0,0,0,0,0.0,0
-Oakley,Swampert,260.0,48,41,13,6,1,1,1,1,1,1,0,0,0,0.0,1
-Raelynn,Blaziken,257.0,44,31,13,6,1,1,1,1,1,1,0,0,0,0.0,1
-Dad,Charizard,6.0,44,8,5,1,1,0,0,0,0,0,0,0,0,,0
-Mbappe,Froakie,656.0,7,4,3,0,0,0,0,0,0,0,0,0,0,,0
-Adeline,Grookey,810.0,5,0,0,0,0,0,0,0,0,0,0,0,0,,0
-Lele,Piplup,393.0,8,3,2,0,0,0,0,0,0,0,0,0,0,,0
+trainer,starter,starter_id,level,wins,losses,badges,badge_rock,badge_grass,badge_water,badge_fire,badge_psychic,badge_normal,badge_ice,badge_elite,evolutions,selected_moves,master_balls,is_champion
+Addy,Meganium,154.0,36,29,12,3,1,1,1,0,0,0,0,0,0,0.0,0,0
+Oakley,Swampert,260.0,48,41,13,6,1,1,1,1,1,1,0,0,0,0.0,1,0
+Raelynn,Blaziken,257.0,44,31,13,6,1,1,1,1,1,1,0,0,0,0.0,1,0
+Dad,Charizard,6.0,44,8,5,1,1,0,0,0,0,0,0,0,0,,0,0
+Mbappe,Froakie,656.0,7,4,3,0,0,0,0,0,0,0,0,0,0,,0,0
+Adeline,Grookey,810.0,5,0,0,0,0,0,0,0,0,0,0,0,0,,0,0
+Lele,Piplup,393.0,8,3,2,0,0,0,0,0,0,0,0,0,0,,0,0
