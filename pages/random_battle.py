@@ -8,7 +8,7 @@ import random
 import streamlit as st
 from utils.pokemon_api import fetch_pokemon, fetch_moves, type_badge_html
 from utils.csv_manager import load_teams, save_teams, update_trainer
-from utils.game_state import hp_percent, hp_bar_color, damage_calc
+from utils.game_state import hp_percent, hp_bar_color, damage_calc, effectiveness_label
 
 TRAINERS = ["Addy", "Oakley", "Raelynn"]
 TRAINER_COLORS = {"Addy": "#F06292", "Oakley": "#64B5F6", "Raelynn": "#FFB74D"}
@@ -138,7 +138,8 @@ def _attack(attacker, move, opp, opp_hp_list, opp_idx, log):
         log.append(f"➤ {attacker['name']} used {move['name']}... missed! ({acc}% acc)")
     else:
         opp_hp_list[opp_idx] = max(0, opp_hp_list[opp_idx] - dmg)
-        log.append(f"➤ {attacker['name']} used {move['name']}! ({dmg} dmg, {acc}% acc)")
+        eff = effectiveness_label(move.get("type","normal"), opp.get("types",["normal"]))
+        log.append(f"➤ {attacker['name']} used {move['name']}! ({dmg} dmg, {acc}% acc)" + (f" {eff}" if eff else ""))
         if opp_hp_list[opp_idx] <= 0:
             log.append(f"💥 {opp['name']} fainted!")
     return opp_hp_list
