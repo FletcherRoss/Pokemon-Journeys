@@ -27,6 +27,26 @@ API_BASE     = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/
 DEFAULT_TRAINERS = ["Addy", "Oakley", "Raelynn"]
 
 
+
+def get_champion() -> str | None:
+    """Return the name of the current champion, or None."""
+    df = load_teams()
+    if "is_champion" not in df.columns:
+        return None
+    champs = df[df["is_champion"] == 1]["trainer"].tolist()
+    return champs[0] if champs else None
+
+
+def set_champion(trainer: str):
+    """Set a trainer as champion, clearing any previous champion."""
+    df = load_teams()
+    if "is_champion" not in df.columns:
+        df["is_champion"] = 0
+    df["is_champion"] = 0
+    df.loc[df["trainer"] == trainer, "is_champion"] = 1
+    save_teams(df)
+
+
 def get_all_trainers() -> list[str]:
     """Return all trainer names currently in teams.csv."""
     df = load_teams()
@@ -51,7 +71,7 @@ def add_trainer(name: str) -> bool:
         "wins": 0, "losses": 0, "badges": 0,
         "badge_rock": 0, "badge_grass": 0, "badge_water": 0, "badge_fire": 0,
         "badge_psychic": 0, "badge_normal": 0, "badge_ice": 0, "badge_elite": 0,
-        "evolutions": 0, "selected_moves": "", "master_balls": 0,
+        "evolutions": 0, "selected_moves": "", "master_balls": 0, "is_champion": 0,
     }
     df = _pd.concat([df, _pd.DataFrame([new_row])], ignore_index=True)
     df = df.astype(object)
@@ -63,7 +83,7 @@ COLUMNS = [
     "wins", "losses", "badges",
     "badge_rock", "badge_grass", "badge_water", "badge_fire",
     "badge_psychic", "badge_normal", "badge_ice", "badge_elite",
-    "evolutions", "selected_moves", "master_balls",
+    "evolutions", "selected_moves", "master_balls", "is_champion",
 ]
 
 LOCAL_CSV = os.path.join(os.path.dirname(__file__), "..", "data", "teams.csv")
@@ -77,7 +97,7 @@ def _default_df() -> pd.DataFrame:
             "wins": 0, "losses": 0, "badges": 0,
             "badge_rock": 0, "badge_grass": 0, "badge_water": 0, "badge_fire": 0,
             "badge_psychic": 0, "badge_normal": 0, "badge_ice": 0, "badge_elite": 0,
-            "evolutions": 0, "selected_moves": "", "master_balls": 0,
+            "evolutions": 0, "selected_moves": "", "master_balls": 0, "is_champion": 0,
         })
     return pd.DataFrame(rows, columns=COLUMNS)
 
