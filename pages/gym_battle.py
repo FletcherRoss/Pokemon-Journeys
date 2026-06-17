@@ -472,24 +472,39 @@ def render():
     if not st.session_state.battle_active and st.session_state.battle_result is None:
         _show_gym_map(row)
 
-        with st.expander("🎮 Log a gym battle fought outside the app"):
-            gym_options = [f"{g['emoji']} {g['name']} — {g['title']}" for g in GYM_INFO]
-            chosen = st.selectbox("Which gym?", gym_options, key="irl_gym_select")
-            irl_result = st.radio("Result:", ["Win", "Loss"], horizontal=True, key="irl_gym_result")
-            if st.button("✅ Log gym battle", key="irl_gym_log", use_container_width=True):
-                gym_idx = gym_options.index(chosen)
-                if irl_result == "Win":
-                    _record_gym_win(gym_idx)
-                    st.success(f"🏅 {GYM_INFO[gym_idx]['badge']} recorded!")
-                else:
-                    df2  = load_teams()
-                    r2   = df2[df2["trainer"] == trainer]
-                    losses = _safe_int(r2.iloc[0]["losses"]) + 1 if len(r2) else 1
-                    df2 = update_trainer(df2, trainer, losses=losses)
-                    save_teams(df2)
-                    st.warning("💀 Loss recorded.")
-                st.rerun()
-        return
+    # ── Elite Four gateway ───────────────────────────────────────────────────
+    badges = sum(_safe_int(row.get(gym["badge_key"], 0)) for gym in GYM_INFO) if len(row) else 0
+    if badges >= 8:
+        st.markdown("---")
+        st.markdown("""
+        <div style="background:linear-gradient(135deg,rgba(255,203,5,0.1),rgba(255,203,5,0.05));
+            border:2px solid #FFCB05;border-radius:14px;padding:1rem;text-align:center;margin-bottom:0.5rem;">
+            <div style="font-size:1.8rem">👑</div>
+            <div style="font-weight:700;color:#FFCB05;margin:4px 0;">All 8 Badges Earned!</div>
+            <div style="font-size:0.82rem;color:var(--text-muted);">You have earned the right to challenge the Elite Four!</div>
+        </div>""", unsafe_allow_html=True)
+        if st.button("⚔️ Challenge the Elite Four →", use_container_width=True):
+            st.session_state.nav_page = "👑 Elite Four"
+            st.rerun()
+
+    with st.expander("🎮 Log a gym battle fought outside the app"):
+        gym_options = [f"{g['emoji']} {g['name']} — {g['title']}" for g in GYM_INFO]
+        chosen = st.selectbox("Which gym?", gym_options, key="irl_gym_select")
+        irl_result = st.radio("Result:", ["Win", "Loss"], horizontal=True, key="irl_gym_result")
+        if st.button("✅ Log gym battle", key="irl_gym_log", use_container_width=True):
+            gym_idx = gym_options.index(chosen)
+            if irl_result == "Win":
+                _record_gym_win(gym_idx)
+                st.success(f"🏅 {GYM_INFO[gym_idx]['badge']} recorded!")
+            else:
+                df2  = load_teams()
+                r2   = df2[df2["trainer"] == trainer]
+                losses = _safe_int(r2.iloc[0]["losses"]) + 1 if len(r2) else 1
+                df2 = update_trainer(df2, trainer, losses=losses)
+                save_teams(df2)
+                st.warning("💀 Loss recorded.")
+            st.rerun()
+    return
 
     # ── Battle result ─────────────────────────────────────────────────────────
     if st.session_state.battle_result:
