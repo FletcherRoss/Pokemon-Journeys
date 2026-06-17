@@ -14,7 +14,8 @@ from utils.captures_manager import (
     get_active_captures
 )
 from utils.game_state import (
-    hp_percent, hp_bar_color, damage_calc, speed_order, reset_battle, level_up_check
+    hp_percent, hp_bar_color, damage_calc, speed_order, reset_battle, level_up_check,
+    effectiveness_label
 )
 
 CAPTURE_THRESHOLD = 10
@@ -232,7 +233,8 @@ def _player_attack(move: dict):
         log.append(f"➤ {my['name']} used {move['name']}... but it missed! (Acc:{move.get('accuracy',100)}%)")
     else:
         st.session_state.opponent_current_hp = max(0, st.session_state.opponent_current_hp - dmg)
-        log.append(f"➤ {my['name']} used {move['name']}! ({dmg} dmg, Acc:{move.get('accuracy',100)}%)")
+        eff = effectiveness_label(move.get("type","normal"), opp.get("types",["normal"]))
+        log.append(f"➤ {my['name']} used {move['name']}! ({dmg} dmg)" + (f" {eff}" if eff else ""))
 
         if st.session_state.opponent_current_hp <= 0:
             xp_gain = random.randint(15, 35)
@@ -567,7 +569,8 @@ def render():
                         log.append(f"➤ Wild {opp['name']} used {move['name']}... missed! ({acc}% acc)")
                     else:
                         st.session_state.my_current_hp = max(0, st.session_state.my_current_hp - dmg)
-                        log.append(f"➤ Wild {opp['name']} used {move['name']}! ({dmg} dmg)")
+                        eff = effectiveness_label(move.get("type","normal"), my.get("types",["normal"]))
+                        log.append(f"➤ Wild {opp['name']} used {move['name']}! ({dmg} dmg)" + (f" {eff}" if eff else ""))
                         if st.session_state.my_current_hp <= 0:
                             log.append(f"💀 {my['name']} fainted!")
                             st.session_state.battle_log  = log[-20:]
