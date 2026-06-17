@@ -294,6 +294,7 @@ with st.sidebar:
         ("🎲", "Random Battle"),
         ("⚔️", "Gauntlet"),
         ("🗺️", "Story Mode"),
+        ("👑", "Elite Four"),
     ]
     if "nav_page" not in st.session_state:
         st.session_state.nav_page = "🏠 Home"
@@ -340,4 +341,7 @@ elif page == "⚔️ Gauntlet":
     render()
 elif page == "🗺️ Story Mode":
     from pages.story_mode import render
+    render()
+elif page == "👑 Elite Four":
+    from pages.elite_four import render
     render()
