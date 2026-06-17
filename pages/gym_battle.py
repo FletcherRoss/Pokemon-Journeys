@@ -8,7 +8,7 @@ import random
 import streamlit as st
 from utils.pokemon_api import get_gym_leader_team, fetch_moves, type_badge_html, fetch_pokemon
 from utils.csv_manager import load_teams, save_teams, update_trainer
-from utils.game_state import hp_percent, hp_bar_color, damage_calc, speed_order, level_up_check
+from utils.game_state import hp_percent, hp_bar_color, damage_calc, effectiveness_label, speed_order, level_up_check
 from utils.captures_manager import load_captures, get_active_captures, init_captures_csv, level_up_team
 from utils.movesets_manager import get_moveset, init_movesets_csv
 
@@ -626,7 +626,8 @@ def render():
                         else:
                             my_hps[target_idx] = max(0, my_hps[target_idx] - opp_dmg)
                             st.session_state.gym_my_hp = my_hps
-                            log.append(f"➤ {active_opp['name']} used {move['name']} on {target['name']}! ({opp_dmg} dmg)")
+                            eff = effectiveness_label(move.get("type","normal"), target.get("types",["normal"]))
+                            log.append(f"➤ {active_opp['name']} used {move['name']} on {target['name']}! ({opp_dmg} dmg)" + (f" {eff}" if eff else ""))
                             if my_hps[target_idx] <= 0:
                                 log.append(f"💀 {target['name']} fainted!")
                                 if all(h <= 0 for h in my_hps):
