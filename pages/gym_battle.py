@@ -308,16 +308,18 @@ def _render_team_picker(trainer: str):
         if st.button("⚔️ Start Battle!", use_container_width=True, disabled=sel_count < need):
             # Build the chosen team
             chosen = [e for e in roster if e["poke"]["name"] in selected][:2]
-            st.session_state.gym_my_team      = [e["poke"]  for e in chosen]
+            st.session_state.gym_my_team       = [e["poke"]  for e in chosen]
             st.session_state.gym_my_moves_list = [e["moves"] for e in chosen]
-            st.session_state.gym_my_hp        = [e["poke"]["hp"] for e in chosen]
-            st.session_state.gym_my_active    = 0
+            st.session_state.gym_my_hp         = [e["poke"]["hp"] for e in chosen]
+            st.session_state.gym_my_active     = 0
             st.session_state.gym_leader_active = 0
             st.session_state.gym_picking_team  = False
             st.session_state.battle_active     = True
-            st.session_state.battle_log        = [
-                f"Gym Leader {GYM_INFO[st.session_state.gym_index]['name']} wants to battle!",
-                f"You sent out {chosen[0]['poke']['name']} and {chosen[1]['poke']['name']}!",
+            names = " and ".join(e["poke"]["name"] for e in chosen)
+            gym_name = GYM_INFO[st.session_state.gym_index]["name"]
+            st.session_state.battle_log = [
+                f"Gym Leader {gym_name} wants to battle!",
+                f"You sent out {names}!",
             ]
             st.session_state.gym_pick_selected = []
             st.rerun()
@@ -504,7 +506,6 @@ def render():
                 save_teams(df2)
                 st.warning("💀 Loss recorded.")
             st.rerun()
-    return
 
     # ── Battle result ─────────────────────────────────────────────────────────
     if st.session_state.battle_result:
