@@ -11,7 +11,7 @@ from utils.csv_manager import load_teams, save_teams, update_trainer
 from utils.captures_manager import load_captures, init_captures_csv, get_active_captures, level_up_team
 from utils.captures_manager import load_captures, get_active_captures, init_captures_csv
 from utils.movesets_manager import get_moveset, init_movesets_csv
-from utils.game_state import hp_percent, hp_bar_color, damage_calc, speed_order, level_up_check
+from utils.game_state import hp_percent, hp_bar_color, damage_calc, effectiveness_label, speed_order, level_up_check
 
 TRAINERS = ["Addy", "Oakley", "Raelynn"]
 TRAINER_COLORS = {"Addy": "#F06292", "Oakley": "#64B5F6", "Raelynn": "#FFB74D"}
@@ -228,7 +228,8 @@ def _attack(attacker_poke, attacker_move, attacker_lv,
         log.append(f"➤ {attacker_poke['name']} used {attacker_move['name']}... missed! (Acc:{attacker_move.get('accuracy',100)}%)")
     else:
         defender_hp_list[defender_idx] = max(0, defender_hp_list[defender_idx] - dmg)
-        log.append(f"➤ {attacker_poke['name']} used {attacker_move['name']}! ({dmg} dmg, Acc:{attacker_move.get('accuracy',100)}%)")
+        eff = effectiveness_label(attacker_move.get("type","normal"), defender_poke.get("types",["normal"]))
+        log.append(f"➤ {attacker_poke['name']} used {attacker_move['name']}! ({dmg} dmg, Acc:{attacker_move.get('accuracy',100)}%)" + (f" {eff}" if eff else ""))
         if defender_hp_list[defender_idx] <= 0:
             log.append(f"💥 {defender_poke['name']} fainted!")
     return defender_hp_list
