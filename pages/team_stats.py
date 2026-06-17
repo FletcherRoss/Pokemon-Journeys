@@ -468,9 +468,18 @@ def _starter_levelup_card(trainer: str, teams_df: pd.DataFrame):
                 st.toast(f"⬆️ {starter} is now Lv. {new_level}!", icon="⬆️")
             st.rerun()
 
-    # Move selector expander
-    with st.expander(f"⚔️ Edit {starter}'s moveset"):
-        _move_selector(trainer, starter_id, starter, current_moves, f"starter_{trainer}")
+    # Move selector — lazy load on button click
+    starter_open_key = f"moveset_open_starter_{trainer}"
+    if st.session_state.get(starter_open_key):
+        with st.expander(f"⚔️ Edit {starter}'s moveset", expanded=True):
+            _move_selector(trainer, starter_id, starter, current_moves, f"starter_{trainer}")
+            if st.button("✖ Close", key=f"close_starter_{trainer}", use_container_width=False):
+                st.session_state[starter_open_key] = False
+                st.rerun()
+    else:
+        if st.button(f"⚔️ Edit {starter}'s moves", key=f"open_starter_{trainer}"):
+            st.session_state[starter_open_key] = True
+            st.rerun()
 
 
 # ── Captured Pokémon grid ─────────────────────────────────────────────────────
@@ -538,11 +547,21 @@ def _captures_levelup_grid(trainer: str, captures_df: pd.DataFrame):
 
             move_expanders.append((poke_id, name, current_moves, cap_idx))
 
-    # Render move selectors outside the columns context to avoid HTML rendering issues
+    # Render move selectors — only load API data when user explicitly opens one
     st.markdown("##### ⚔️ Edit Movesets")
     for poke_id, name, current_moves, cap_idx in move_expanders:
-        with st.expander(f"⚔️ {name}'s moves", expanded=False):
-            _move_selector(trainer, poke_id, name, current_moves, f"{trainer}_{cap_idx}")
+        ukey = f"{trainer}_{cap_idx}"
+        open_key = f"moveset_open_{ukey}"
+        if st.session_state.get(open_key):
+            with st.expander(f"⚔️ {name}'s moves", expanded=True):
+                _move_selector(trainer, poke_id, name, current_moves, ukey)
+                if st.button("✖ Close", key=f"close_{ukey}", use_container_width=False):
+                    st.session_state[open_key] = False
+                    st.rerun()
+        else:
+            if st.button(f"⚔️ Edit {name}'s moves", key=f"open_{ukey}", use_container_width=False):
+                st.session_state[open_key] = True
+                st.rerun()
 
 
 # ── Main render ───────────────────────────────────────────────────────────────
