@@ -10,7 +10,7 @@ from utils.pokemon_api import fetch_pokemon, fetch_moves, type_badge_html
 from utils.csv_manager import load_teams, save_teams, update_trainer
 from utils.story_mode_utils import use_master_ball, get_master_balls
 from utils.captures_manager import add_capture, init_captures_csv, level_up_team
-from utils.game_state import hp_percent, hp_bar_color, damage_calc
+from utils.game_state import hp_percent, hp_bar_color, damage_calc, effectiveness_label
 
 def _get_trainers():
     """Always read live from CSV so new players are included."""
@@ -794,7 +794,9 @@ def _do_attack(trainer, poke, move, enemy, enemy_idx,
     else:
         enemy_hps[enemy_idx] = max(0, enemy_hps[enemy_idx] - dmg)
         mod_tag = " ⚡×2" if mod == "double" else " 🛡️×½" if mod == "half" else ""
-        log.append(f"➤ {poke['name']} used {move['name']}! ({dmg} dmg{mod_tag})")
+        eff = effectiveness_label(move.get("type","normal"), enemy.get("types",["normal"]))
+        eff_tag = f" {eff}" if eff else ""
+        log.append(f"➤ {poke['name']} used {move['name']}! ({dmg} dmg{mod_tag}){eff_tag}")
     st.session_state.gt_enemy_hp = enemy_hps
 
     if enemy_hps[enemy_idx] <= 0:
@@ -942,7 +944,8 @@ def _phase_legendary():
                         log.append(f"➤ {poke['name']} used {move['name']}... missed!")
                     else:
                         st.session_state.gt_legendary_hp = max(0, leg_hp - dmg)
-                        log.append(f"➤ {poke['name']} used {move['name']}! ({dmg} dmg)")
+                        eff = effectiveness_label(move.get("type","normal"), legendary.get("types",["normal"]))
+                        log.append(f"➤ {poke['name']} used {move['name']}! ({dmg} dmg)" + (f" {eff}" if eff else ""))
                     st.session_state.gt_log = log[-40:]
                     st.rerun()
 
