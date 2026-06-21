@@ -1,5 +1,5 @@
 trainer,pokemon_name,pokemon_id,types,level_caught,current_level,caught_at,selected_moves,active
-Oakley,Jumpluff,189,grass/flying,5,55,2026-05-23 16:30,,1.0
+Oakley,Jumpluff,189,grass/flying,5,57,2026-05-23 16:30,,1.0
 Raelynn,Sudowoodo,185,rock,6,39,2026-05-23 16:33,,0.0
 Addy,Rhyperior,464,ground/rock,5,36,2026-05-23 22:10,,1.0
 Oakley,Dusknoir,477,ghost,6,45,2026-05-23 22:13,,0.0
@@ -9,9 +9,9 @@ Addy,Magmortar,467,fire,10,36,2026-05-23 23:24,,1.0
 Addy,Ambipom,424,normal,13,36,2026-05-24 14:37,,1.0
 Raelynn,Crobat,169,poison/flying,14,50,2026-05-24 14:41,,1.0
 Raelynn,Glalie,362,ice,17,38,2026-05-24 21:27,,0.0
-Oakley,Ludicolo,272,water/grass,17,56,2026-05-25 13:49,,1.0
+Oakley,Ludicolo,272,water/grass,17,58,2026-05-25 13:49,,1.0
 Addy,Steelix,208,steel/ground,19,38,2026-05-25 13:53,,1.0
-Oakley,Jynx,124,ice/psychic,19,55,2026-05-25 14:21,,1.0
+Oakley,Jynx,124,ice/psychic,19,57,2026-05-25 14:21,,1.0
 Addy,Snubbull,209,fairy,21,34,2026-05-30 20:40,,0.0
 Addy,Machamp,68,fighting,21,23,2026-05-30 20:42,,1.0
 Addy,Lileep,345,rock/grass,44,44,2026-06-07 23:54,,0.0
@@ -23,12 +23,12 @@ Dad,Qwilfish,211,water/poison,31,48,2026-06-15 00:26,,1.0
 Raelynn,Binacle,688,rock/water,43,56,2026-06-15 00:26,,1.0
 Raelynn,Gible,443,dragon/ground,37,46,2026-06-15 00:41,,1.0
 Dad,Gabite,444,dragon/ground,37,53,2026-06-15 00:41,,1.0
-Oakley,Mewtwo,150,psychic,70,80,2026-06-15 00:55,,1.0
+Oakley,Mewtwo,150,psychic,70,82,2026-06-15 00:55,,1.0
 Raelynn,Espeon,196,psychic,39,48,2026-06-15 00:56,,1.0
 Oakley,Baxcalibur,998,dragon/ice,31,31,2026-06-15 23:52,,0.0
 Dad,Baxcalibur,998,dragon/ice,31,43,2026-06-15 23:52,,1.0
 Raelynn,Baxcalibur,998,dragon/ice,31,38,2026-06-15 23:52,,1.0
-Oakley,Baxcalibur,998,dragon/ice,31,39,2026-06-15 23:52,,1.0
+Oakley,Baxcalibur,998,dragon/ice,31,41,2026-06-15 23:52,,1.0
 Dad,Baxcalibur,998,dragon/ice,31,33,2026-06-15 23:52,,0.0
 Raelynn,Baxcalibur,998,dragon/ice,31,31,2026-06-15 23:52,,0.0
 Dad,Meloetta-aria,648,normal/psychic,70,80,2026-06-16 00:06,,1.0
