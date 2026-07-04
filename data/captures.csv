@@ -1,19 +1,19 @@
 trainer,pokemon_name,pokemon_id,types,level_caught,current_level,caught_at,selected_moves,active
 Oakley,Jumpluff,189,grass/flying,5,59,2026-05-23 16:30,,1.0
 Raelynn,Sudowoodo,185,rock,6,39,2026-05-23 16:33,,0.0
-Addy,Rhyperior,464,ground/rock,5,40,2026-05-23 22:10,,1.0
+Addy,Rhyperior,464,ground/rock,5,41,2026-05-23 22:10,,1.0
 Oakley,Dusknoir,477,ghost,6,45,2026-05-23 22:13,,0.0
 Raelynn,Cacturne,332,grass/dark,12,43,2026-05-23 23:19,,0.0
 Oakley,Butterfree,12,bug/flying,13,48,2026-05-23 23:20,,0.0
-Addy,Magmortar,467,fire,10,40,2026-05-23 23:24,,1.0
+Addy,Magmortar,467,fire,10,41,2026-05-23 23:24,,1.0
 Addy,Ambipom,424,normal,13,38,2026-05-24 14:37,,0.0
 Raelynn,Crobat,169,poison/flying,14,56,2026-05-24 14:41,,1.0
 Raelynn,Glalie,362,ice,17,38,2026-05-24 21:27,,0.0
 Oakley,Ludicolo,272,water/grass,17,60,2026-05-25 13:49,,1.0
-Addy,Steelix,208,steel/ground,19,42,2026-05-25 13:53,,1.0
+Addy,Steelix,208,steel/ground,19,43,2026-05-25 13:53,,1.0
 Oakley,Jynx,124,ice/psychic,19,59,2026-05-25 14:21,,1.0
 Addy,Snubbull,209,fairy,21,34,2026-05-30 20:40,,0.0
-Addy,Machamp,68,fighting,21,27,2026-05-30 20:42,,1.0
+Addy,Machamp,68,fighting,21,28,2026-05-30 20:42,,1.0
 Addy,Lileep,345,rock/grass,44,44,2026-06-07 23:54,,0.0
 Addy,Seviper,336,poison,29,29,2026-06-08 00:43,,0.0
 Raelynn,Falinks,870,fighting,31,35,2026-06-10 00:20,,0.0
@@ -40,6 +40,6 @@ Raelynn,Tirtouga,564,water/rock,44,44,2026-06-16 00:46,,0.0
 Raelynn,Wurmple,265,bug,39,39,2026-06-19 00:04,,0.0
 Raelynn,Wurmple,265,bug,39,39,2026-06-19 00:04,,0.0
 Raelynn,Hoopa,720,psychic/ghost,70,72,2026-06-21 13:32,,1.0
-Addy,Hoopa,720,psychic/ghost,70,72,2026-06-21 13:32,,1.0
+Addy,Hoopa,720,psychic/ghost,70,73,2026-06-21 13:32,,1.0
 Addy,Dratini,147,dragon,33,33,2026-07-01 00:10,,0.0
 Addy,Dratini,147,dragon,33,33,2026-07-01 00:11,,0.0
